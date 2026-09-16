@@ -1,448 +1,584 @@
-<title>Ночной неон</title>
+<title>Пульт 68</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <style>
 :root{
-  --ink-900:#04060B; --ink-800:#070B14; --ink-700:#0A1018; --ink-600:#111927;
-  --glass:rgba(17,26,42,.55); --glass-hi:rgba(46,66,102,.40); --stroke:rgba(122,160,214,.18);
-  --stroke-hot:rgba(79,227,255,.38);
-  --neon:#4FE3FF; --neon-dim:#2499BA; --rim:#2E6BFF; --hot:#FF3B52;
-  --txt:#E4EDF9; --txt-2:#9DB2CC; --txt-3:#65809E;
-  --c1:#2499BA; --c2:#8E6BE8; --c3:#C4557F; --c4:#C07E2B; --c5:#2E9E73;
+  --void:#04060A; --deep:#070B12;
+  --pane:rgba(9,15,24,.62); --pane-solid:#0A111B;
+  --wire:rgba(89,231,255,.55); --wire-dim:rgba(120,158,205,.20); --hair:rgba(120,158,205,.13);
+  --cy:#59E7FF; --blue:#2F78FF; --red:#FF2E4D; --amber:#FFB55C;
+  --ink:#E6EFFA; --ink2:#9CB3CE; --ink3:#5F7B9B;
+  --s1:#2499BA; --s2:#8E6BE8; --s3:#C4557F; --s4:#C07E2B; --s5:#2E9E73;
   --ok:#2E9E73; --warn:#C07E2B; --bad:#C4557F;
-  --r-s:10px; --r-m:16px; --r-l:22px;
-  --glow:0 0 22px rgba(79,227,255,.28);
-  --accent:var(--neon); --accent-soft:rgba(79,227,255,.14);
 }
-:root[data-accent="calm"]{ --accent:#7FA6C9; --accent-soft:rgba(127,166,201,.12); --glow:0 0 14px rgba(127,166,201,.18); --stroke-hot:rgba(127,166,201,.30); }
-html,body{background:var(--ink-900);}
-body{
-  margin:0; color:var(--txt); font-family:"Golos Text",system-ui,-apple-system,Segoe UI,sans-serif;
-  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
-}
-.bg{position:fixed; inset:0; z-index:-1; background:
-  radial-gradient(120% 80% at 88% 8%, rgba(46,107,255,.30), transparent 58%),
-  radial-gradient(80% 60% at 78% 55%, rgba(79,227,255,.12), transparent 62%),
-  radial-gradient(60% 50% at 12% 88%, rgba(255,59,82,.07), transparent 60%),
-  linear-gradient(180deg,#04060B,#060910 45%,#04060B);}
-.bg::after{content:""; position:absolute; inset:0; opacity:.05; mix-blend-mode:overlay;
-  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 1px,transparent 1px 3px);}
-.wrap{max-width:1180px; margin:0 auto; padding-inline:20px; padding-block:0 72px;}
-h1,h2,h3,.disp{font-family:"Unbounded","Golos Text",sans-serif; font-weight:600; text-wrap:balance; margin:0;}
-h1{font-size:clamp(30px,5.4vw,50px); line-height:1.06; letter-spacing:-.02em;}
-h2{font-size:clamp(19px,2.6vw,25px); letter-spacing:-.01em;}
-h3{font-size:16px; letter-spacing:-.005em;}
-p{margin:0;}
-.mono{font-family:"JetBrains Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums;}
-.eyebrow{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--txt-3);}
-.lede{color:var(--txt-2); max-width:62ch;}
-.muted{color:var(--txt-3); font-size:13px;}
+html,body{background:var(--void); height:100%;}
+body{margin:0; color:var(--ink); font-family:"Golos Text",system-ui,sans-serif; font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;}
 
-header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; backdrop-filter:blur(16px);
-  background:linear-gradient(180deg,rgba(4,6,11,.92),rgba(4,6,11,.62)); border-bottom:1px solid var(--stroke);}
-.top-in{max-width:1180px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
-.logo{display:flex; align-items:center; gap:10px; font-family:"Unbounded",sans-serif; font-weight:700; font-size:15px; letter-spacing:.01em;}
-.spark{width:11px; height:11px; border-radius:3px; background:var(--accent); box-shadow:var(--glow); flex:none;}
-.top-sp{flex:1 1 auto;}
-.seg{display:flex; gap:4px; padding:4px; border:1px solid var(--stroke); border-radius:999px; background:rgba(10,16,24,.7);}
-.seg button{font:500 12px/1 "Golos Text",sans-serif; color:var(--txt-2); background:none; border:0; padding:8px 13px; border-radius:999px; cursor:pointer;}
-.seg button[aria-pressed="true"]{background:var(--accent-soft); color:var(--txt); box-shadow:inset 0 0 0 1px var(--stroke-hot);}
-.seg button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+/* ---------- ground: two light sources + wet wall texture ---------- */
+.ground{position:fixed; inset:0; z-index:-3; background:
+  radial-gradient(58% 44% at 80% 2%, rgba(47,120,255,.34), transparent 62%),
+  radial-gradient(40% 38% at 99% 34%, rgba(89,231,255,.16), transparent 66%),
+  radial-gradient(52% 44% at 4% 98%, rgba(255,46,77,.13), transparent 64%),
+  linear-gradient(180deg,#04060A,#060A11 40%,#03050A);}
+.ground::before{content:""; position:absolute; inset:0; opacity:.5; background:
+  repeating-linear-gradient(118deg, rgba(150,190,240,.030) 0 1px, transparent 1px 7px),
+  repeating-linear-gradient(118deg, rgba(0,0,0,.22) 0 2px, transparent 2px 26px);}
+.ground::after{content:""; position:absolute; inset:0; box-shadow:inset 0 0 220px 60px rgba(0,0,0,.75);}
+.grain{position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.055; mix-blend-mode:overlay;
+  background-image:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px);}
+.flash{position:fixed; width:640px; height:640px; left:0; top:0; margin:-320px 0 0 -320px; z-index:-1; pointer-events:none;
+  background:radial-gradient(circle, rgba(120,190,255,.11), rgba(89,231,255,.05) 38%, transparent 68%);
+  opacity:0; transition:opacity .5s ease;}
+@media (pointer:fine){ body:hover .flash{opacity:1;} }
 
-section{padding-block:56px; border-top:1px solid rgba(122,160,214,.10);}
-section:first-of-type{border-top:0;}
-.hero{padding-block:52px 40px;}
-.hero .row{display:flex; gap:30px; align-items:flex-end; flex-wrap:wrap;}
-.hero .row > div:first-child{flex:1 1 380px;}
-.badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:20px;}
-.badge{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; padding:6px 11px; border-radius:999px;
-  border:1px solid var(--stroke); background:rgba(17,26,42,.6); color:var(--txt-2);}
-.badge b{color:var(--accent); font-weight:500;}
+/* ---------- shell ---------- */
+.shell{display:grid; grid-template-columns:76px 1fr; min-height:100%;}
+@media(max-width:980px){ .shell{grid-template-columns:1fr;} }
 
-.panel{background:var(--glass); border:1px solid var(--stroke); border-radius:var(--r-l);
-  backdrop-filter:blur(18px) saturate(1.15); box-shadow:0 22px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);}
-.panel.hot{border-color:var(--stroke-hot); box-shadow:0 22px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06), 0 0 30px rgba(79,227,255,.10);}
-.pad{padding:18px;}
-.grid{display:grid; gap:14px;}
-.sec-head{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:22px;}
-.sec-head p{color:var(--txt-2); font-size:14px;}
+.rail{position:sticky; top:0; height:100vh; display:flex; flex-direction:column; align-items:center; gap:18px;
+  padding-block:18px; border-right:1px solid var(--hair); background:linear-gradient(180deg,rgba(6,10,17,.9),rgba(4,6,10,.5));}
+@media(max-width:980px){ .rail{display:none;} }
+.mark{width:26px; height:26px; flex:none; position:relative;}
+.mark i{position:absolute; inset:0; border:1.5px solid var(--cy); box-shadow:0 0 14px rgba(89,231,255,.55);}
+.mark i:nth-child(2){inset:6px; border-color:rgba(255,46,77,.75); box-shadow:0 0 12px rgba(255,46,77,.45);}
+.railnav{display:flex; flex-direction:column; gap:2px; align-items:center; margin-top:8px;}
+.railnav button{writing-mode:vertical-rl; text-orientation:mixed; background:none; border:0; cursor:pointer;
+  font-family:"Oswald",sans-serif; font-weight:400; font-size:13px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink3); padding:14px 7px; position:relative;}
+.railnav button.on{color:var(--cy); text-shadow:0 0 16px rgba(89,231,255,.6);}
+.railnav button.on::before{content:""; position:absolute; left:2px; top:10px; bottom:10px; width:2px; background:var(--cy);
+  box-shadow:0 0 10px var(--cy);}
+.railnav button:focus-visible{outline:1px solid var(--cy); outline-offset:2px;}
+.railwire{flex:1 1 auto; width:2px; min-height:40px; position:relative; overflow:hidden; background:var(--wire-dim);}
+.railwire i{position:absolute; left:0; right:0; height:38%; background:linear-gradient(180deg,transparent,var(--cy),transparent);
+  animation:run 4.2s linear infinite;}
+@keyframes run{ from{top:-40%} to{top:100%} }
+.railtime{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--ink3); writing-mode:vertical-rl;}
 
-/* ---- live mock ---- */
-.mock{display:grid; grid-template-columns:200px 1fr; gap:16px; align-items:start;}
-@media(max-width:860px){ .mock{grid-template-columns:1fr;} .rail{display:none;} }
-.rail{position:sticky; top:84px; padding:10px;}
-.rail a{display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:var(--r-s); color:var(--txt-2);
-  text-decoration:none; font-size:14px; font-weight:500;}
-.rail a.on{background:var(--accent-soft); color:var(--txt); box-shadow:inset 0 0 0 1px var(--stroke-hot);}
-.rail .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.7; flex:none;}
-.rail .grp{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em; color:var(--txt-3); padding:12px 11px 6px;}
+.main{min-width:0; padding:22px 20px 96px;}
+@media(min-width:981px){ .main{padding:26px 30px 44px;} }
 
-.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px;}
-.kpi{padding:16px 16px 14px;}
-.kpi .lab{font-size:12.5px; color:var(--txt-3); display:flex; align-items:center; gap:7px;}
-.kpi .val{font-family:"Unbounded",sans-serif; font-weight:600; font-size:27px; letter-spacing:-.02em; margin-top:8px; font-variant-numeric:tabular-nums;}
-.kpi .sub{font-size:12px; color:var(--txt-2); margin-top:4px;}
-.bar{height:5px; border-radius:99px; background:rgba(122,160,214,.14); margin-top:12px; position:relative; overflow:hidden;}
-.bar i{position:absolute; inset:0 auto 0 0; border-radius:99px; background:linear-gradient(90deg,var(--c1),var(--accent));}
-.tick{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--txt-2); opacity:.55; border-radius:2px;}
-.chip{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.05em; padding:3px 8px; border-radius:6px; border:1px solid transparent;}
-.chip.ok{color:#7FD9B4; background:rgba(46,158,115,.14); border-color:rgba(46,158,115,.35);}
-.chip.warn{color:#E0B073; background:rgba(192,126,43,.14); border-color:rgba(192,126,43,.35);}
-.chip.bad{color:#E88CAB; background:rgba(196,85,127,.14); border-color:rgba(196,85,127,.35);}
+/* ---------- top strip ---------- */
+.strip{display:flex; align-items:center; gap:10px 18px; flex-wrap:wrap; margin-bottom:22px;}
+.kick{font-family:"Oswald",sans-serif; font-size:clamp(26px,4.2vw,42px); font-weight:600; letter-spacing:.005em;
+  text-transform:uppercase; line-height:1; margin:0;}
+.kick small{display:block; font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:400; letter-spacing:.2em;
+  color:var(--ink3); text-transform:uppercase; margin-bottom:7px;}
+.strip-sp{flex:1 1 auto; min-width:10px;}
+.stat{display:flex; align-items:center; gap:8px; font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--ink2);}
+.stat b{width:7px; height:7px; background:var(--ok); box-shadow:0 0 10px var(--ok); flex:none;}
+.demo{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--amber); border:1px solid rgba(255,181,92,.4); padding:4px 9px;}
 
-.two{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
-@media(max-width:760px){ .two{grid-template-columns:1fr;} }
-.card-h{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
-.card-h h3{font-size:14.5px;}
+/* ---------- module ---------- */
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px;}
+@media(max-width:980px){ .grid{grid-template-columns:repeat(6,1fr);} }
+@media(max-width:620px){ .grid{grid-template-columns:1fr; gap:12px;} }
+.mod{position:relative; background:var(--pane); backdrop-filter:blur(14px) saturate(1.1); border-radius:3px;
+  padding:16px; box-shadow:inset 0 1px 0 rgba(255,255,255,.045), 0 20px 46px rgba(0,0,0,.5);
+  outline:1px solid var(--hair); outline-offset:0; animation:rise .5s cubic-bezier(.2,.7,.3,1) both;}
+@keyframes rise{ from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none} }
+.mod::before,.mod::after{content:""; position:absolute; width:20px; height:20px; pointer-events:none;
+  transition:border-color .25s ease, box-shadow .25s ease;}
+.mod::before{left:-1px; top:-1px; border-left:1px solid var(--wire); border-top:1px solid var(--wire);}
+.mod::after{right:-1px; bottom:-1px; border-right:1px solid var(--wire); border-bottom:1px solid var(--wire);}
+.mod:hover::before,.mod:hover::after{border-color:var(--cy); box-shadow:0 0 14px rgba(89,231,255,.35);}
+.mod.hot{background:linear-gradient(180deg,rgba(14,26,42,.72),rgba(8,13,21,.66));}
+.mh{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.mh h2,.mh h3{font-family:"Oswald",sans-serif; font-weight:500; font-size:14px; letter-spacing:.16em; text-transform:uppercase;
+  margin:0; color:var(--ink2);}
+.mh .sp{flex:1 1 auto;}
+.tag{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.06em; padding:3px 7px; border:1px solid transparent;}
+.tag.ok{color:#7FD9B4; border-color:rgba(46,158,115,.4); background:rgba(46,158,115,.10);}
+.tag.warn{color:#E0B073; border-color:rgba(192,126,43,.4); background:rgba(192,126,43,.10);}
+.tag.bad{color:#F08098; border-color:rgba(255,46,77,.42); background:rgba(255,46,77,.10);}
+.num{font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.01em; font-variant-numeric:tabular-nums; line-height:.92;}
+.mono{font-family:"JetBrains Mono",monospace; font-variant-numeric:tabular-nums;}
+.sub{font-size:12.5px; color:var(--ink3); margin-top:6px;}
 
-.ring-row{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
-.ring{position:relative; flex:none;}
-.ring figcaption{position:absolute; inset:0; display:grid; place-content:center; text-align:center;}
-.ring .big{font-family:"Unbounded",sans-serif; font-size:24px; font-weight:600; font-variant-numeric:tabular-nums;}
-.ring .cap{font-size:10.5px; color:var(--txt-3);}
+/* spans */
+.c12{grid-column:span 12} .c8{grid-column:span 8} .c7{grid-column:span 7} .c6{grid-column:span 6}
+.c5{grid-column:span 5} .c4{grid-column:span 4} .c3{grid-column:span 3}
+@media(max-width:980px){ .c8,.c7,.c6,.c5,.c4,.c3,.c12{grid-column:span 6} }
+@media(max-width:620px){ .c8,.c7,.c6,.c5,.c4,.c3,.c12{grid-column:span 1} }
 
-.rows{display:flex; flex-direction:column; gap:11px;}
-.row-item{display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center;}
-.row-item .nm{font-size:13.5px; color:var(--txt-2);}
-.row-item .amt{font-family:"JetBrains Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums;}
-.track{grid-column:1/-1; height:9px; border-radius:5px; background:rgba(122,160,214,.10); overflow:hidden;}
-.track i{display:block; height:100%; border-radius:5px;}
+/* ---------- hero: today ---------- */
+.today{display:grid; grid-template-columns:1fr 168px; gap:20px;}
+@media(max-width:620px){ .today{grid-template-columns:1fr;} }
+@media(max-width:620px){ .fin2{grid-template-columns:1fr!important;} }
+.spine{position:relative; padding-left:26px;}
+.spine::before{content:""; position:absolute; left:8px; top:6px; bottom:6px; width:1px; background:var(--wire-dim);}
+.spine i.fill{position:absolute; left:7px; top:6px; width:3px; background:linear-gradient(180deg,var(--cy),rgba(89,231,255,.15));
+  box-shadow:0 0 12px rgba(89,231,255,.5); transition:height .45s cubic-bezier(.2,.7,.3,1);}
+.tk{display:flex; align-items:flex-start; gap:11px; padding:10px 0; position:relative;}
+.tk + .tk{border-top:1px solid rgba(120,158,205,.09);}
+.tk::before{content:""; position:absolute; left:-22px; top:18px; width:9px; height:9px; border:1px solid var(--wire-dim);
+  background:var(--deep); transform:rotate(45deg);}
+.tk.done::before{background:var(--cy); border-color:var(--cy); box-shadow:0 0 12px rgba(89,231,255,.7);}
+.tk input{appearance:none; width:20px; height:20px; margin:0; flex:none; border:1px solid rgba(89,231,255,.45);
+  background:rgba(6,11,18,.8); cursor:pointer; display:grid; place-content:center; border-radius:2px;}
+.tk input:checked{background:rgba(89,231,255,.14); box-shadow:0 0 14px rgba(89,231,255,.3);}
+.tk input:checked::after{content:"✕"; font-size:11px; color:var(--cy);}
+.tk input:focus-visible{outline:1px solid var(--cy); outline-offset:3px;}
+.tk label{font-size:14.5px; cursor:pointer; flex:1 1 auto;}
+.tk.done label{color:var(--ink3); text-decoration:line-through;}
+.tk .meta{font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--ink3); white-space:nowrap;}
+.todaynum{display:flex; flex-direction:column; justify-content:center; align-items:flex-end; text-align:right;
+  border-left:1px solid var(--hair); padding-left:18px;}
+@media(max-width:620px){ .todaynum{border-left:0; border-top:1px solid var(--hair); padding:14px 0 0; align-items:flex-start; text-align:left;} }
+.todaynum .big{font-size:clamp(52px,9vw,76px);}
+.switch{display:inline-flex; border:1px solid var(--hair); margin-left:auto;}
+.switch button{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  background:none; border:0; color:var(--ink3); padding:6px 11px; cursor:pointer;}
+.switch button[aria-pressed="true"]{color:var(--cy); background:rgba(89,231,255,.10); box-shadow:inset 0 0 0 1px rgba(89,231,255,.3);}
+.switch button:focus-visible{outline:1px solid var(--cy); outline-offset:2px;}
 
-.task{display:flex; align-items:flex-start; gap:11px; padding:9px 0; border-bottom:1px solid rgba(122,160,214,.09);}
-.task:last-child{border-bottom:0;}
-.task input{appearance:none; width:19px; height:19px; margin:1px 0 0; border-radius:6px; border:1.5px solid var(--stroke-hot);
-  background:rgba(10,16,24,.8); cursor:pointer; flex:none; display:grid; place-content:center;}
-.task input:checked{background:var(--accent-soft); box-shadow:var(--glow);}
-.task input:checked::after{content:"✓"; font-size:12px; color:var(--accent); line-height:1;}
-.task input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-.task label{font-size:14px; cursor:pointer;}
-.task input:checked + label{color:var(--txt-3); text-decoration:line-through;}
-.task .t{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3); margin-left:auto; padding-left:8px;}
+/* ---------- misc parts ---------- */
+.funnel .step{display:grid; grid-template-columns:1fr auto; gap:5px 10px; margin-bottom:6px;}
+.funnel .lab{font-size:13px; color:var(--ink2);} .funnel .v{font-family:"JetBrains Mono",monospace; font-size:13px;}
+.funnel .bar{grid-column:1/-1; height:26px; background:rgba(120,158,205,.08); position:relative; border-radius:2px;}
+.funnel .bar i{position:absolute; inset:0 auto 0 0; border-radius:2px;}
+.funnel .drop{font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--ink3); padding:2px 0 8px 12px; position:relative;}
+.funnel .drop::before{content:"↓"; margin-right:6px; color:var(--cy);}
 
-.agents{display:flex; flex-direction:column; gap:9px;}
-.agent{display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:var(--r-s);
-  background:rgba(10,16,24,.5); border:1px solid rgba(122,160,214,.10);}
-.agent .pulse{width:7px; height:7px; border-radius:50%; background:var(--ok); box-shadow:0 0 10px currentColor; flex:none;}
-.agent .pulse.wait{background:var(--txt-3); box-shadow:none;}
-.agent .nm{font-size:13.5px; flex:1 1 auto;}
-.agent .when{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3);}
+.mgr{display:grid; grid-template-columns:38px 1fr 44px; gap:10px; align-items:center; padding:9px 0;}
+.mgr + .mgr{border-top:1px solid rgba(120,158,205,.08);}
+.mgr .ini{font-family:"Oswald",sans-serif; font-size:12px; letter-spacing:.08em; color:var(--ink2); text-align:center;
+  border:1px solid var(--hair); padding:5px 0; border-radius:2px;}
+.mgr .track{height:8px; background:rgba(120,158,205,.09); border-radius:2px; overflow:hidden;}
+.mgr .track i{display:block; height:100%;}
+.mgr .pc{font-family:"JetBrains Mono",monospace; font-size:12.5px; text-align:right;}
+.mgr .nm{font-size:12px; color:var(--ink3); margin-bottom:5px;}
 
-.news li{list-style:none; padding:9px 0; border-bottom:1px solid rgba(122,160,214,.09); font-size:13.5px; color:var(--txt-2);}
-.news li:last-child{border-bottom:0;}
-.news{margin:0; padding:0;}
-.news .src{font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--txt-3); display:block; margin-top:3px;}
+.therm{display:flex; gap:3px; height:38px; align-items:stretch; margin:6px 0 10px;}
+.therm span{flex:1; background:rgba(120,158,205,.09); border-radius:1px;}
+.therm span.on{background:linear-gradient(180deg,var(--s1),rgba(36,153,186,.45)); box-shadow:0 0 10px rgba(89,231,255,.20);}
+.therm span.goal{background:rgba(255,181,92,.25); box-shadow:inset 0 0 0 1px rgba(255,181,92,.6);}
 
-.wx{display:flex; align-items:center; gap:16px;}
-.wx .deg{font-family:"Unbounded",sans-serif; font-size:38px; font-weight:600; letter-spacing:-.03em;}
+.stack{height:30px; display:flex; border-radius:2px; overflow:hidden; gap:2px; margin-bottom:12px;}
+.stack i{display:block; height:100%;}
+.legend{display:flex; flex-wrap:wrap; gap:8px 16px;}
+.legend span{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink2);}
+.legend b{width:9px; height:9px; flex:none; border-radius:2px;}
+.legend em{font-family:"JetBrains Mono",monospace; font-style:normal; color:var(--ink3); font-size:11.5px;}
 
-/* ---- spec ---- */
-.sw-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
-.sw{border-radius:var(--r-m); overflow:hidden; border:1px solid var(--stroke); background:rgba(10,16,24,.5);}
-.sw .fill{height:66px;}
-.sw .meta{padding:9px 11px;}
-.sw .nm{font-size:12.5px;}
-.sw .hex{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3);}
-.type-row{display:grid; grid-template-columns:150px 1fr; gap:16px; padding:16px 0; border-bottom:1px solid rgba(122,160,214,.09); align-items:baseline;}
-@media(max-width:640px){ .type-row{grid-template-columns:1fr; gap:6px;} }
-.type-row:last-child{border-bottom:0;}
-.notes{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px;}
-.note h3{margin-bottom:7px; font-size:14.5px;}
-.note p{font-size:13.5px; color:var(--txt-2);}
-.note .dotc{width:9px; height:9px; border-radius:3px; display:inline-block; margin-right:7px;}
+.ag{display:flex; align-items:center; gap:10px; padding:9px 0; font-size:13px;}
+.ag + .ag{border-top:1px solid rgba(120,158,205,.08);}
+.ag .d{width:6px; height:6px; flex:none; background:var(--ok); box-shadow:0 0 9px var(--ok);}
+.ag .d.wait{background:var(--ink3); box-shadow:none;}
+.ag .t{margin-left:auto; font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--ink3);}
 
-.phone{width:290px; max-width:100%; border-radius:34px; padding:11px; border:1px solid var(--stroke-hot);
-  background:linear-gradient(180deg,rgba(23,35,56,.75),rgba(8,12,20,.85)); box-shadow:0 28px 60px rgba(0,0,0,.6);}
-.phone-in{border-radius:25px; background:var(--ink-800); padding:14px 13px 9px; border:1px solid rgba(122,160,214,.12);}
-.tabbar{display:flex; justify-content:space-between; gap:3px; margin-top:13px; padding-top:9px; border-top:1px solid rgba(122,160,214,.12);}
-.tabbar span{font-size:9.5px; color:var(--txt-3); text-align:center; flex:1;}
-.tabbar span.on{color:var(--accent);}
-.tabbar b{display:block; width:17px; height:17px; margin:0 auto 4px; border-radius:6px; border:1.5px solid currentColor; opacity:.85;}
+.wx{display:flex; align-items:baseline; gap:12px;}
+.wx .deg{font-size:46px;}
+.news{margin:12px 0 0; padding:0; list-style:none;}
+.news li{font-size:13px; color:var(--ink2); padding:8px 0; border-top:1px solid rgba(120,158,205,.08);}
 
-.steps{counter-reset:s; display:grid; gap:12px;}
-.step{display:flex; gap:13px; align-items:flex-start;}
-.step::before{counter-increment:s; content:counter(s); font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--accent);
-  border:1px solid var(--stroke-hot); border-radius:8px; width:26px; height:26px; display:grid; place-content:center; flex:none;}
-.step p{font-size:14px; color:var(--txt-2);}
-.step b{color:var(--txt); font-weight:600;}
+.alert{display:flex; gap:10px; align-items:flex-start; padding:9px 0; font-size:13.5px;}
+.alert + .alert{border-top:1px solid rgba(120,158,205,.08);}
+.alert .b{width:3px; align-self:stretch; background:var(--red); box-shadow:0 0 10px rgba(255,46,77,.6); flex:none;}
+.alert .w{background:var(--amber); box-shadow:0 0 10px rgba(255,181,92,.5);}
+.alert .t{margin-left:auto; font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--ink3); white-space:nowrap;}
 
-.tip{position:fixed; pointer-events:none; z-index:40; background:rgba(8,12,20,.95); border:1px solid var(--stroke-hot);
-  border-radius:9px; padding:7px 10px; font-size:12px; box-shadow:0 10px 26px rgba(0,0,0,.6); transform:translate(-50%,-125%);}
-.tip .v{font-family:"JetBrains Mono",monospace; color:var(--accent);}
-@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+.tip{position:fixed; z-index:60; pointer-events:none; background:rgba(5,9,15,.96); border:1px solid rgba(89,231,255,.4);
+  padding:7px 10px; font-size:12px; transform:translate(-50%,-130%); box-shadow:0 12px 30px rgba(0,0,0,.7);}
+.tip .v{font-family:"JetBrains Mono",monospace; color:var(--cy);}
+
+/* ---------- bottom tabs (mobile) ---------- */
+.tabs{position:fixed; left:0; right:0; bottom:0; z-index:30; display:none; justify-content:space-around;
+  padding:9px 6px calc(9px + env(safe-area-inset-bottom,0px)); background:rgba(5,9,15,.94);
+  border-top:1px solid var(--hair); backdrop-filter:blur(14px);}
+@media(max-width:980px){ .tabs{display:flex;} }
+.tabs button{background:none; border:0; color:var(--ink3); font-family:"Oswald",sans-serif; font-size:10px;
+  letter-spacing:.12em; text-transform:uppercase; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px;}
+.tabs button.on{color:var(--cy);}
+.tabs b{width:16px; height:16px; border:1px solid currentColor; border-radius:2px;}
+.tabs button.on b{box-shadow:0 0 10px rgba(89,231,255,.6); background:rgba(89,231,255,.15);}
+
+/* ---------- spec ---------- */
+.spec{margin-top:40px; padding-top:30px; border-top:1px solid var(--hair);}
+.spec h2{font-family:"Oswald",sans-serif; font-size:19px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 6px;}
+.spec p.l{color:var(--ink2); max-width:64ch; font-size:14px; margin:0 0 20px;}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px;}
+.card{padding:15px; outline:1px solid var(--hair); background:rgba(9,15,24,.5); border-radius:3px;}
+.card h3{font-family:"Oswald",sans-serif; font-size:13px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 7px; color:var(--cy);}
+.card p{font-size:13px; color:var(--ink2); margin:0;}
+.sw{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;}
+.sw div{flex:1 1 84px; border-radius:2px; outline:1px solid var(--hair); overflow:hidden;}
+.sw i{display:block; height:46px;}
+.sw span{display:block; font-family:"JetBrains Mono",monospace; font-size:10px; color:var(--ink3); padding:6px 7px;}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} .mod{opacity:1!important;} }
 </style>
 
-<div class="bg"></div>
+<div class="ground"></div><div class="grain"></div><div class="flash" id="flash"></div>
 
-<header class="top">
-  <div class="top-in">
-    <span class="logo"><span class="spark"></span>Poshumim</span>
-    <span class="top-sp"></span>
-    <span class="muted" style="font-size:12px">Акцент</span>
-    <div class="seg" role="group" aria-label="Насыщенность акцента">
-      <button type="button" id="accNeon" aria-pressed="true">Неон</button>
-      <button type="button" id="accCalm" aria-pressed="false">Приглушённый</button>
+<div class="shell">
+  <nav class="rail" aria-label="Разделы">
+    <span class="mark" aria-hidden="true"><i></i><i></i></span>
+    <div class="railnav">
+      <button type="button" class="on">Главная</button>
+      <button type="button">Работа</button>
+      <button type="button">Финансы</button>
+      <button type="button">Развитие</button>
+      <button type="button">Дела</button>
     </div>
-  </div>
-</header>
+    <span class="railwire" aria-hidden="true"><i></i></span>
+    <span class="railtime mono" id="railTime">09:07 МСК</span>
+  </nav>
 
-<div class="wrap">
-
-<section class="hero">
-  <div class="row">
-    <div>
-      <p class="eyebrow">Дизайн-направление 01</p>
-      <h1 style="margin-top:10px">Ночной&nbsp;неон</h1>
-      <p class="lede" style="margin-top:16px">Интерфейс снят с вашего референса напрямую: почти чёрная глубина, холодный контровой свет справа, тонкие светящиеся линии вместо рамок и красный, который включается только когда что-то горит.</p>
-      <div class="badges">
-        <span class="badge">Фон <b>полупрозрачное стекло</b></span>
-        <span class="badge">Тема <b>только тёмная</b></span>
-        <span class="badge">Шрифты <b>с кириллицей</b></span>
-        <span class="badge">Палитра <b>проверена на дальтонизм</b></span>
-      </div>
+  <main class="main">
+    <div class="strip">
+      <h1 class="kick"><small>Вторник · Тамбов · смена началась</small>Пульт 68</h1>
+      <span class="strip-sp"></span>
+      <span class="stat"><b></b>Amo · синхронизировано 2 мин назад</span>
+      <span class="demo">Демо-данные</span>
     </div>
-    <div class="panel pad" style="flex:0 1 265px">
-      <p class="eyebrow">Принцип</p>
-      <p style="margin-top:9px; font-size:14px; color:var(--txt-2)">Свет — это информация. Светится только то, что требует внимания: текущая метрика, просроченная сделка, кнопка действия. Остальное лежит в тени и не спорит за взгляд.</p>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="sec-head">
-    <h2>Главная панель</h2>
-    <p>Живой фрагмент в предлагаемом стиле. Кликайте по задачам и наводите на график.</p>
-    <span class="chip warn" style="margin-left:auto">Демо-данные</span>
-  </div>
-
-  <div class="mock">
-    <nav class="rail panel" aria-label="Разделы">
-      <p class="grp">Разделы</p>
-      <a href="#" class="on"><span class="dot"></span>Главная</a>
-      <a href="#"><span class="dot"></span>Работа</a>
-      <a href="#"><span class="dot"></span>Финансы</a>
-      <a href="#"><span class="dot"></span>Развитие</a>
-      <a href="#"><span class="dot"></span>Задачи</a>
-    </nav>
 
     <div class="grid">
-      <div class="kpis">
-        <div class="panel kpi hot">
-          <div class="lab">Конверсия в замер <span class="chip warn">цель 80%</span></div>
-          <div class="val mono">68<span style="font-size:17px">%</span></div>
-          <div class="sub">до 18 ноября осталось 12 п.п.</div>
-          <div class="bar"><i style="width:68%"></i><span class="tick" style="left:80%"></span></div>
-        </div>
-        <div class="panel kpi">
-          <div class="lab">План месяца</div>
-          <div class="val mono">10,6<span style="font-size:17px"> млн</span></div>
-          <div class="sub">62% от 17 000 000</div>
-          <div class="bar"><i style="width:62%"></i></div>
-        </div>
-        <div class="panel kpi">
-          <div class="lab">Квалы за месяц</div>
-          <div class="val mono">84</div>
-          <div class="sub">замеров 57 · договоров 19</div>
-        </div>
-        <div class="panel kpi">
-          <div class="lab">Проблемные сделки <span class="chip bad">3</span></div>
-          <div class="val mono">3</div>
-          <div class="sub">без касания более 48 часов</div>
-        </div>
-      </div>
 
-      <div class="two">
-        <div class="panel pad">
-          <div class="card-h"><h3>Конверсия, 14 дней</h3><span class="chip ok">+16 п.п.</span></div>
-          <div class="ring-row">
-            <figure class="ring" style="margin:0">
-              <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Текущая конверсия 68 процентов при цели 80">
-                <circle cx="56" cy="56" r="47" fill="none" stroke="rgba(122,160,214,.16)" stroke-width="9"></circle>
-                <circle cx="56" cy="56" r="47" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round"
-                  stroke-dasharray="295.3" stroke-dashoffset="94.5" transform="rotate(-90 56 56)"></circle>
-                <line x1="56" y1="4" x2="56" y2="16" stroke="#E4EDF9" stroke-width="2.5" stroke-linecap="round"
-                  transform="rotate(288 56 56)"></line>
-              </svg>
-              <figcaption><span class="big">68%</span><span class="cap">цель 80%</span></figcaption>
-            </figure>
-            <div style="flex:1 1 180px; min-width:170px">
-              <svg id="spark" viewBox="0 0 260 78" preserveAspectRatio="none" style="width:100%; height:78px; overflow:visible" role="img" aria-label="Динамика конверсии за 14 дней, с 52 до 68 процентов"></svg>
-              <p class="muted mono" style="margin-top:6px">квал → назначенный замер, %</p>
-            </div>
+      <!-- HERO: today -->
+      <section class="mod hot c8" style="animation-delay:.02s">
+        <div class="mh">
+          <h2>Дела на сегодня</h2>
+          <span class="sp"></span>
+          <div class="switch" role="group" aria-label="Период">
+            <button type="button" id="pD" aria-pressed="true">День</button>
+            <button type="button" id="pW" aria-pressed="false">Неделя</button>
+            <button type="button" id="pM" aria-pressed="false">Месяц</button>
           </div>
         </div>
-
-        <div class="panel pad">
-          <div class="card-h"><h3>Доход за месяц</h3><span class="mono" style="font-size:13px">790 000 ₽</span></div>
-          <div class="rows" id="income"></div>
-        </div>
-      </div>
-
-      <div class="two">
-        <div class="panel pad">
-          <div class="card-h"><h3>Дела на сегодня</h3><span class="chip ok" id="taskPct">0%</span></div>
-          <div id="tasks"></div>
-          <div class="bar" style="margin-top:14px"><i id="taskBar" style="width:0%"></i></div>
-        </div>
-
-        <div class="grid">
-          <div class="panel pad">
-            <div class="card-h"><h3>Агенты</h3><span class="muted mono">МСК</span></div>
-            <div class="agents">
-              <div class="agent"><span class="pulse"></span><span class="nm">Отчётник · Google Sheets</span><span class="when">08:30 ✓</span></div>
-              <div class="agent"><span class="pulse"></span><span class="nm">Сводка в Telegram</span><span class="when">09:00 ✓</span></div>
-              <div class="agent"><span class="pulse wait"></span><span class="nm">Секретарь · список дел</span><span class="when">09:05</span></div>
-              <div class="agent"><span class="pulse"></span><span class="nm">РОП-аналитик · AmoCRM</span><span class="when">онлайн</span></div>
-            </div>
-          </div>
-          <div class="panel pad">
-            <div class="card-h"><h3>Тамбов</h3><span class="muted">за сутки</span></div>
-            <div class="wx" style="margin-bottom:12px">
-              <span class="deg mono">+12°</span>
-              <p class="muted" style="font-size:13px">Ветер 4 м/с, к вечеру дождь.<br>Замеры после 18:00 лучше перенести.</p>
-            </div>
-            <ul class="news">
-              <li>На Советской меняют теплотрассу, участок перекрыт до пятницы<span class="src">городская повестка</span></li>
-              <li>Ставка по семейной ипотеке снова в фокусе застройщиков<span class="src">рынок</span></li>
-            </ul>
+        <div class="today">
+          <div class="spine" id="spine"><i class="fill" id="spineFill" style="height:0"></i><div id="tasks"></div></div>
+          <div class="todaynum">
+            <span class="num big" id="taskPct">0%</span>
+            <span class="sub" id="taskSub">0 из 0 закрыто</span>
+            <span class="tag ok" style="margin-top:12px" id="taskTag">секретарь · 09:05</span>
           </div>
         </div>
+      </section>
+
+      <!-- gauge -->
+      <section class="mod c4" style="animation-delay:.06s">
+        <div class="mh"><h3>Конверсия в замер</h3><span class="sp"></span><span class="tag warn">цель 80%</span></div>
+        <svg id="gauge" viewBox="0 0 240 146" style="width:100%; height:auto; display:block" role="img"
+             aria-label="Конверсия квалифицированного лида в назначенный замер 68 процентов при цели 80 процентов"></svg>
+        <p class="sub" style="text-align:center">до 18 ноября нужно ещё <b style="color:var(--ink)">12 п.п.</b></p>
+      </section>
+
+      <!-- line 14d -->
+      <section class="mod c7" style="animation-delay:.10s">
+        <div class="mh"><h3>Конверсия · 14 дней</h3><span class="sp"></span><span class="tag ok">+16 п.п.</span></div>
+        <svg id="line" viewBox="0 0 560 190" style="width:100%; height:auto; display:block; overflow:visible" role="img"
+             aria-label="График конверсии за 14 дней: рост с 52 до 68 процентов при цели 80"></svg>
+      </section>
+
+      <!-- funnel -->
+      <section class="mod c5 funnel" style="animation-delay:.14s">
+        <div class="mh"><h3>Воронка месяца</h3><span class="sp"></span><span class="mono" style="font-size:11px; color:var(--ink3)">осн. + отложенный</span></div>
+        <div id="funnel"></div>
+      </section>
+
+      <!-- plan -->
+      <section class="mod c6" style="animation-delay:.18s">
+        <div class="mh"><h3>План месяца</h3><span class="sp"></span><span class="mono" style="font-size:12px">10 540 000 / 17 000 000</span></div>
+        <div class="therm" id="therm"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end">
+          <span class="num" style="font-size:38px" id="planPct">0%</span>
+          <span class="sub" style="text-align:right">темп <b style="color:var(--amber)">−1,8 млн</b><br>к ровному графику</span>
+        </div>
+      </section>
+
+      <!-- managers -->
+      <section class="mod c6" style="animation-delay:.22s">
+        <div class="mh"><h3>Менеджеры</h3><span class="sp"></span><span class="tag bad">1 отстаёт</span></div>
+        <div id="mgrs"></div>
+      </section>
+
+      <!-- alerts -->
+      <section class="mod c5" style="animation-delay:.26s">
+        <div class="mh"><h3>Требует вас</h3><span class="sp"></span><span class="tag bad">3</span></div>
+        <div class="alert"><span class="b"></span><span>Сделка №4412 без касания<br><span class="sub" style="margin:0">квал с сайта, Тихие стены</span></span><span class="t">61 ч</span></div>
+        <div class="alert"><span class="b"></span><span>Замер перенесён дважды<br><span class="sub" style="margin:0">Мичуринская, ремонт под ключ</span></span><span class="t">2 дн</span></div>
+        <div class="alert"><span class="b w"></span><span>Отчёт в таблице: 2 пустые клетки<br><span class="sub" style="margin:0">агент не нашёл источник обращения</span></span><span class="t">08:30</span></div>
+      </section>
+
+      <!-- money -->
+      <section class="mod c7" style="animation-delay:.30s">
+        <div class="mh"><h3>Финансы · сентябрь</h3><span class="sp"></span><span class="mono" style="font-size:12px; color:var(--ok)">+598 000 ₽</span></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px" class="fin2">
+          <div>
+            <p class="sub" style="margin:0 0 7px">Доход · 790 000 ₽</p>
+            <div class="stack" id="inc"></div>
+            <div class="legend" id="incLeg"></div>
+          </div>
+          <div>
+            <p class="sub" style="margin:0 0 7px">Расход · 192 000 ₽</p>
+            <div class="stack" id="exp"></div>
+            <div class="legend" id="expLeg"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- agents -->
+      <section class="mod c5" style="animation-delay:.34s">
+        <div class="mh"><h3>Агенты</h3><span class="sp"></span><span class="mono" style="font-size:11px; color:var(--ink3)">МСК</span></div>
+        <div class="ag"><span class="d"></span>Отчётник · Google Sheets<span class="t">08:30 ✓</span></div>
+        <div class="ag"><span class="d"></span>Сводка в Telegram<span class="t">09:00 ✓</span></div>
+        <div class="ag"><span class="d wait"></span>Секретарь · список дел<span class="t">09:05</span></div>
+        <div class="ag"><span class="d"></span>РОП-аналитик · AmoCRM<span class="t">онлайн</span></div>
+        <div class="ag"><span class="d"></span>Рынок и новости<span class="t">07:40 ✓</span></div>
+      </section>
+
+      <!-- goals -->
+      <section class="mod c6" style="animation-delay:.38s">
+        <div class="mh"><h3>Развитие</h3><span class="sp"></span><span class="mono" style="font-size:11px; color:var(--ink3)">3 цели</span></div>
+        <div id="goals"></div>
+      </section>
+
+      <!-- city -->
+      <section class="mod c6" style="animation-delay:.42s">
+        <div class="mh"><h3>Тамбов</h3><span class="sp"></span><span class="mono" style="font-size:11px; color:var(--ink3)">за сутки</span></div>
+        <div class="wx"><span class="num deg">+12°</span><span class="sub" style="margin:0">ветер 4 м/с, к вечеру дождь.<br>Замеры после 18:00 лучше перенести.</span></div>
+        <ul class="news">
+          <li>На Советской меняют теплотрассу, участок перекрыт до пятницы</li>
+          <li>Застройщики обсуждают новые условия семейной ипотеки</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <div class="spec">
+      <h2>Из чего это сделано</h2>
+      <p class="l">Ни одной обведённой карточки: модули держатся на угловых скобах и свете, как приборы на щитке. Всё остальное взято прямо с вашего фото.</p>
+      <div class="cards">
+        <div class="card"><h3>Два источника света</h3><p>Синий сверху справа — как прожектор на стене. Красный снизу слева — как отсвет в маске. Между ними интерфейс получает объём без единой рамки.</p></div>
+        <div class="card"><h3>Проводка вместо границ</h3><p>Светящаяся жила на рейке пульсирует, пока агенты работают. Углы модулей загораются под курсором. Курсор тащит за собой пятно света.</p></div>
+        <div class="card"><h3>Мокрый бетон</h3><p>Диагональная штриховка фона повторяет фактуру стены со снимка. Она убирает ощущение стерильной заливки.</p></div>
+        <div class="card"><h3>Шрифт как на щитке</h3><p>Oswald узкий и высокий: заголовки набираются капителью с разрядкой, цифры встают в колонну. Кириллица полная, без квадратиков.</p></div>
+        <div class="card"><h3>Цвет графиков проверен</h3><p>Пять цветов серий прошли валидатор на дальтонизм и контраст. Неон в данные не идёт: он слишком светлый и остаётся акцентом.</p></div>
+        <div class="card"><h3>Красный зарезервирован</h3><p>Красный не бывает просто цветом серии. Он значит просрочку, срыв или зависшую сделку. Поэтому его замечаешь мгновенно.</p></div>
+      </div>
+      <div class="sw">
+        <div><i style="background:#04060A"></i><span>#04060A фон</span></div>
+        <div><i style="background:#59E7FF"></i><span>#59E7FF жила</span></div>
+        <div><i style="background:#2F78FF"></i><span>#2F78FF прожектор</span></div>
+        <div><i style="background:#FF2E4D"></i><span>#FF2E4D тревога</span></div>
+        <div><i style="background:#2499BA"></i><span>#2499BA серия 1</span></div>
+        <div><i style="background:#8E6BE8"></i><span>#8E6BE8 серия 2</span></div>
+        <div><i style="background:#C4557F"></i><span>#C4557F серия 3</span></div>
+        <div><i style="background:#C07E2B"></i><span>#C07E2B серия 4</span></div>
+        <div><i style="background:#2E9E73"></i><span>#2E9E73 серия 5</span></div>
       </div>
     </div>
-  </div>
-</section>
-
-<section>
-  <div class="sec-head"><h2>Палитра</h2><p>Пять цветов серий проверены валидатором: различимы при дальтонизме и дают контраст выше 3:1 на тёмном фоне.</p></div>
-  <div class="sw-grid">
-    <div class="sw"><div class="fill" style="background:#04060B"></div><div class="meta"><div class="nm">Глубина</div><div class="hex">#04060B</div></div></div>
-    <div class="sw"><div class="fill" style="background:rgba(17,26,42,.85)"></div><div class="meta"><div class="nm">Стекло панели</div><div class="hex">rgba(17,26,42,.55)</div></div></div>
-    <div class="sw"><div class="fill" style="background:#4FE3FF"></div><div class="meta"><div class="nm">Неон · акцент</div><div class="hex">#4FE3FF</div></div></div>
-    <div class="sw"><div class="fill" style="background:#2E6BFF"></div><div class="meta"><div class="nm">Контровой свет</div><div class="hex">#2E6BFF</div></div></div>
-    <div class="sw"><div class="fill" style="background:#FF3B52"></div><div class="meta"><div class="nm">Тревога</div><div class="hex">#FF3B52</div></div></div>
-  </div>
-  <div class="sw-grid" style="margin-top:12px">
-    <div class="sw"><div class="fill" style="background:#2499BA"></div><div class="meta"><div class="nm">Серия 1</div><div class="hex">#2499BA</div></div></div>
-    <div class="sw"><div class="fill" style="background:#8E6BE8"></div><div class="meta"><div class="nm">Серия 2</div><div class="hex">#8E6BE8</div></div></div>
-    <div class="sw"><div class="fill" style="background:#C4557F"></div><div class="meta"><div class="nm">Серия 3</div><div class="hex">#C4557F</div></div></div>
-    <div class="sw"><div class="fill" style="background:#C07E2B"></div><div class="meta"><div class="nm">Серия 4</div><div class="hex">#C07E2B</div></div></div>
-    <div class="sw"><div class="fill" style="background:#2E9E73"></div><div class="meta"><div class="nm">Серия 5</div><div class="hex">#2E9E73</div></div></div>
-  </div>
-  <div class="notes" style="margin-top:22px">
-    <div class="note"><h3><span class="dotc" style="background:#4FE3FF"></span>Неон — только акцент</h3><p>Свечение достаётся текущему значению, активному разделу и кнопке действия. Если светится всё, не светится ничего.</p></div>
-    <div class="note"><h3><span class="dotc" style="background:#FF3B52"></span>Красный зарезервирован</h3><p>Красный не бывает «просто серией графика». Он означает просрочку, провал плана или сорванный замер.</p></div>
-    <div class="note"><h3><span class="dotc" style="background:#2E6BFF"></span>Синий держит глубину</h3><p>Холодный градиент справа сверху повторяет свет со стены на фото и задаёт объём без единой лишней рамки.</p></div>
-  </div>
-</section>
-
-<section>
-  <div class="sec-head"><h2>Типографика</h2><p>Три гарнитуры, все с полноценной кириллицей. Ни одного «квадратика» вместо буквы.</p></div>
-  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">Unbounded 600</div><div class="muted">заголовки и крупные цифры</div></div><div class="disp" style="font-size:30px">Конверсия 68%</div></div>
-  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">Golos Text 400/600</div><div class="muted">весь основной текст</div></div><div style="font-size:16px">Квалифицированный лид переходит в назначенный замер — основная метрика отдела.</div></div>
-  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">JetBrains Mono 500</div><div class="muted">суммы, время, таблицы</div></div><div class="mono" style="font-size:16px">17 000 000 ₽ · 08:30 МСК · +12°</div></div>
-</section>
-
-<section>
-  <div class="sec-head"><h2>Телефон</h2><p>Разделы уезжают в нижнюю панель, плитки встают в одну колонку, стекло становится плотнее — читаемо даже на солнце.</p></div>
-  <div style="display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start">
-    <div class="phone">
-      <div class="phone-in">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:11px">
-          <span class="logo" style="font-size:12px"><span class="spark" style="width:8px;height:8px"></span>Главная</span>
-          <span class="mono" style="font-size:10px; color:var(--txt-3)">09:41</span>
-        </div>
-        <div class="panel kpi hot" style="padding:13px">
-          <div class="lab" style="font-size:11px">Конверсия в замер</div>
-          <div class="val mono" style="font-size:23px">68%</div>
-          <div class="bar"><i style="width:68%"></i><span class="tick" style="left:80%"></span></div>
-        </div>
-        <div class="panel kpi" style="padding:13px; margin-top:9px">
-          <div class="lab" style="font-size:11px">План месяца</div>
-          <div class="val mono" style="font-size:23px">62%</div>
-          <div class="bar"><i style="width:62%"></i></div>
-        </div>
-        <div class="tabbar">
-          <span class="on"><b></b>Главная</span><span><b></b>Работа</span><span><b></b>Финансы</span><span><b></b>Рост</span><span><b></b>Дела</span>
-        </div>
-      </div>
-    </div>
-    <div class="notes" style="flex:1 1 300px">
-      <div class="note"><h3>Слабый интернет</h3><p>Экран открывается из кеша мгновенно и показывает время последнего обновления. Ввод расходов и галочки работают без сети и досылаются, когда связь вернётся.</p></div>
-      <div class="note"><h3>Палец, а не курсор</h3><p>Все нажимаемые элементы не меньше 44 пикселей. Галочка выполнения — крупная, попадаешь не глядя.</p></div>
-      <div class="note"><h3>Стекло дозировано</h3><p>Размытие фона стоит денег по батарее, поэтому на телефоне слоёв меньше, а контраст текста выше.</p></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="sec-head"><h2>Что дальше</h2></div>
-  <div class="steps">
-    <div class="step"><p><b>Вы смотрите этот экран</b> и говорите, что нравится, а что переделать: плотность, размер цифр, количество свечения.</p></div>
-    <div class="step"><p><b>Я собираю остальные четыре раздела</b> в утверждённом стиле: Работа, Финансы, Развитие, Задачи.</p></div>
-    <div class="step"><p><b>Вы даёте доступы</b> к AmoCRM, таблице отчёта, Telegram и календарю. Инструкции пришлю по шагам.</p></div>
-    <div class="step"><p><b>Включаю агентов по расписанию</b> и мы проверяем боевой день: 08:30 отчёт, 09:00 сводка, 09:05 список дел.</p></div>
-  </div>
-</section>
-
+  </main>
 </div>
+
+<nav class="tabs" aria-label="Разделы">
+  <button type="button" class="on"><b></b>Главная</button>
+  <button type="button"><b></b>Работа</button>
+  <button type="button"><b></b>Финансы</button>
+  <button type="button"><b></b>Рост</button>
+  <button type="button"><b></b>Дела</button>
+</nav>
 
 <script>
 (function(){
-  var root=document.documentElement, n=document.getElementById('accNeon'), c=document.getElementById('accCalm');
-  function set(mode){ root.setAttribute('data-accent',mode);
-    n.setAttribute('aria-pressed', mode==='neon'); c.setAttribute('aria-pressed', mode==='calm');
-    try{ localStorage.setItem('posh-accent',mode); }catch(e){} }
-  n.addEventListener('click',function(){set('neon');}); c.addEventListener('click',function(){set('calm');});
-  try{ var s=localStorage.getItem('posh-accent'); if(s) set(s); }catch(e){}
+  var $=function(id){return document.getElementById(id);};
+  var rm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  var income=[{n:'Капиталстрой',v:420000,c:'#2499BA'},{n:'Нейротемы',v:180000,c:'#8E6BE8'},
-              {n:'Тихие стены',v:95000,c:'#C4557F'},{n:'Долг',v:60000,c:'#C07E2B'},{n:'Прочее',v:35000,c:'#2E9E73'}];
-  var max=420000, box=document.getElementById('income'), html='';
-  income.forEach(function(i){
-    html+='<div class="row-item"><span class="nm">'+i.n+'</span><span class="amt">'+i.v.toLocaleString('ru-RU')+' ₽</span>'+
-          '<span class="track"><i style="width:'+(i.v/max*100)+'%; background:'+i.c+'"></i></span></div>';
-  });
-  box.innerHTML=html;
-
-  var tasks=[['Планёрка с менеджерами','09:30',true],['Разобрать 3 зависшие сделки','11:00',false],
-             ['Прозвон отложенного спроса','14:00',false],['Замер на Мичуринской','16:30',false],
-             ['Свести отчёт за неделю','18:00',false]];
-  var tw=document.getElementById('tasks'), th='';
-  tasks.forEach(function(t,i){
-    th+='<div class="task"><input type="checkbox" id="t'+i+'"'+(t[2]?' checked':'')+'>'+
-        '<label for="t'+i+'">'+t[0]+'</label><span class="t">'+t[1]+'</span></div>';
-  });
-  tw.innerHTML=th;
-  function recount(){
-    var all=tw.querySelectorAll('input'), done=tw.querySelectorAll('input:checked').length;
-    var p=Math.round(done/all.length*100);
-    document.getElementById('taskPct').textContent=p+'%';
-    document.getElementById('taskBar').style.width=p+'%';
+  /* flashlight */
+  var fl=$("flash");
+  if(window.matchMedia&&window.matchMedia("(pointer:fine)").matches){
+    window.addEventListener("pointermove",function(e){ fl.style.transform="translate("+e.clientX+"px,"+e.clientY+"px)"; });
   }
-  tw.addEventListener('change',recount); recount();
 
-  var data=[52,55,53,58,60,59,62,61,64,66,65,67,66,68], W=260, H=78, lo=48, hi=72;
-  var x=function(i){ return i*(W/(data.length-1)); }, y=function(v){ return H-((v-lo)/(hi-lo))*H; };
-  var d='', pts='';
-  data.forEach(function(v,i){ d+=(i?' L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1); });
-  var area=d+' L'+W+' '+H+' L0 '+H+' Z';
-  data.forEach(function(v,i){ pts+='<circle class="pt" data-v="'+v+'" data-i="'+i+'" cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="9" fill="transparent"></circle>'; });
-  document.getElementById('spark').innerHTML=
-    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'+
-    '<stop offset="0%" stop-color="#4FE3FF" stop-opacity=".26"/><stop offset="100%" stop-color="#4FE3FF" stop-opacity="0"/></linearGradient></defs>'+
-    '<path d="'+area+'" fill="url(#g)"></path>'+
-    '<path d="'+d+'" fill="none" stroke="#4FE3FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>'+
-    '<circle cx="'+x(data.length-1)+'" cy="'+y(68)+'" r="4" fill="#4FE3FF" stroke="#04060B" stroke-width="2"></circle>'+pts;
+  /* clock */
+  function clock(){ var d=new Date();
+    $("railTime").textContent=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+" МСК"; }
+  clock(); setInterval(clock,20000);
 
-  var tip=null;
-  document.getElementById('spark').addEventListener('mouseover',function(e){
-    var t=e.target; if(!t.classList||!t.classList.contains('pt')) return;
-    if(!tip){ tip=document.createElement('div'); tip.className='tip'; document.body.appendChild(tip); }
-    var day=14-parseInt(t.getAttribute('data-i'),10);
-    tip.innerHTML='<span class="v">'+t.getAttribute('data-v')+'%</span> · '+(day===1?'вчера':day+' дн. назад');
-    var r=t.getBoundingClientRect();
-    tip.style.left=(r.left+r.width/2)+'px'; tip.style.top=r.top+'px'; tip.hidden=false;
+  /* ---- tasks ---- */
+  var SETS={
+    day:[["Планёрка с менеджерами","09:30",true],["Разобрать 3 зависшие сделки","11:00",false],
+         ["Прозвон отложенного спроса","14:00",false],["Замер на Мичуринской","16:30",false],
+         ["Свести отчёт за неделю","18:00",false]],
+    week:[["Дожать конверсию до 72%","до пт",false],["Разбор звонков каждого менеджера","ср",true],
+          ["Обновить регламент по квалам","чт",false],["Две тренировки","сб, вс",false]],
+    month:[["Конверсия 80% к 18 ноября","18.11",false],["3 тренировки","сентябрь",true],
+           ["Закрыть план 17 млн","30.09",false],["Отложить 120 000 в копилку","30.09",false]]
+  };
+  var cur="day";
+  function drawTasks(){
+    var list=SETS[cur], h="";
+    list.forEach(function(t,i){
+      h+='<div class="tk'+(t[2]?" done":"")+'"><input type="checkbox" id="k'+i+'"'+(t[2]?" checked":"")+
+         '><label for="k'+i+'">'+t[0]+'</label><span class="meta">'+t[1]+'</span></div>';
+    });
+    $("tasks").innerHTML=h; recount();
+  }
+  function recount(){
+    var ins=$("tasks").querySelectorAll("input"), done=$("tasks").querySelectorAll("input:checked").length;
+    var p=ins.length?Math.round(done/ins.length*100):0;
+    $("taskPct").textContent=p+"%";
+    $("taskSub").textContent=done+" из "+ins.length+" закрыто";
+    $("spineFill").style.height=p+"%";
+    var tag=$("taskTag");
+    tag.className="tag "+(p===100?"ok":p>=50?"ok":"warn");
+    tag.textContent=p===100?"день закрыт":"секретарь · 09:05";
+  }
+  $("tasks").addEventListener("change",function(e){
+    var row=e.target.closest(".tk"); if(row) row.classList.toggle("done",e.target.checked); recount();
   });
-  document.getElementById('spark').addEventListener('mouseleave',function(){ if(tip) tip.hidden=true; });
+  ["D","W","M"].forEach(function(k,i){
+    $("p"+k).addEventListener("click",function(){
+      cur=["day","week","month"][i];
+      ["D","W","M"].forEach(function(j,n){ $("p"+j).setAttribute("aria-pressed", n===i); });
+      drawTasks();
+    });
+  });
+  drawTasks();
+
+  /* ---- gauge ---- */
+  (function(){
+    var val=68, goal=80, cx=120, cy=120, r=90, w=15;
+    function rad(p){ return Math.PI*(1-p/100); }
+    function pt(p,rr){ var a=rad(p); return [cx+rr*Math.cos(a), cy-rr*Math.sin(a)]; }
+    function arc(p0,p1){ var a=pt(p0,r), b=pt(p1,r);
+      return "M"+a[0].toFixed(1)+" "+a[1].toFixed(1)+" A"+r+" "+r+" 0 "+((p1-p0)>50?1:0)+" 1 "+b[0].toFixed(1)+" "+b[1].toFixed(1); }
+    var s='<defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">'+
+      '<stop offset="0%" stop-color="#2499BA"/><stop offset="100%" stop-color="#59E7FF"/></linearGradient>'+
+      '<filter id="gl" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4.5" result="b"/>'+
+      '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+    s+='<path d="'+arc(0,100)+'" fill="none" stroke="rgba(120,158,205,.14)" stroke-width="'+w+'"/>';
+    s+='<path d="'+arc(0,val)+'" fill="none" stroke="url(#gg)" stroke-width="'+w+'" filter="url(#gl)"/>';
+    for(var v=0; v<=100; v+=10){
+      var a=pt(v,r+w/2+3), b=pt(v,r+w/2+(v%50===0?10:6));
+      s+='<line x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+
+         '" stroke="rgba(120,158,205,'+(v%50===0?".55":".28")+')" stroke-width="1.5" stroke-linecap="round"/>';
+    }
+    var g0=pt(goal,r-w/2-2), g1=pt(goal,r+w/2+12);
+    s+='<line x1="'+g0[0].toFixed(1)+'" y1="'+g0[1].toFixed(1)+'" x2="'+g1[0].toFixed(1)+'" y2="'+g1[1].toFixed(1)+
+       '" stroke="#FFB55C" stroke-width="2.5" stroke-linecap="round"/>';
+    var gl=pt(goal,r+w/2+20);
+    s+='<text x="'+gl[0].toFixed(1)+'" y="'+(gl[1]+4).toFixed(1)+'" text-anchor="middle" fill="#FFB55C" '+
+       'font-family="JetBrains Mono, monospace" font-size="11">80</text>';
+    var e=pt(val,r);
+    s+='<circle cx="'+e[0].toFixed(1)+'" cy="'+e[1].toFixed(1)+'" r="6" fill="#59E7FF" stroke="#04060A" stroke-width="2.5"/>';
+    s+='<text x="'+cx+'" y="113" text-anchor="middle" fill="#E6EFFA" font-family="Oswald, sans-serif" font-weight="600" font-size="46">68%</text>';
+    s+='<text x="'+cx+'" y="133" text-anchor="middle" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">КВАЛ \u2192 ЗАМЕР</text>';
+    document.getElementById("gauge").innerHTML=s;
+  })();
+
+  /* ---- line ---- */
+  (function(){
+    var d=[52,55,53,58,60,59,62,61,64,66,65,67,66,68], W=560,H=190, L=34,R=8,T=12,B=26;
+    var lo=40, hi=85, iw=W-L-R, ih=H-T-B;
+    var X=function(i){ return L+i*(iw/(d.length-1)); }, Y=function(v){ return T+ih-((v-lo)/(hi-lo))*ih; };
+    var s='<defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="#59E7FF" stop-opacity=".30"/><stop offset="100%" stop-color="#59E7FF" stop-opacity="0"/></linearGradient></defs>';
+    [40,60,80].forEach(function(v){
+      s+='<line x1="'+L+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(v).toFixed(1)+'" stroke="rgba(120,158,205,.12)" stroke-width="1"/>';
+      s+='<text x="'+(L-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">'+v+'</text>';
+    });
+    s+='<line x1="'+L+'" y1="'+Y(80).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(80).toFixed(1)+
+       '" stroke="#FFB55C" stroke-width="1.5" stroke-dasharray="5 5" opacity=".75"/>';
+    s+='<text x="'+(W-R)+'" y="'+(Y(80)-7).toFixed(1)+'" text-anchor="end" fill="#FFB55C" font-family="JetBrains Mono, monospace" font-size="10">цель 80</text>';
+    var p=""; d.forEach(function(v,i){ p+=(i?" L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); });
+    s+='<path d="'+p+" L"+X(d.length-1).toFixed(1)+" "+(T+ih)+" L"+L+" "+(T+ih)+' Z" fill="url(#ar)"/>';
+    s+='<path d="'+p+'" fill="none" stroke="#59E7FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+    s+='<circle cx="'+X(d.length-1).toFixed(1)+'" cy="'+Y(68).toFixed(1)+'" r="4.5" fill="#59E7FF" stroke="#04060A" stroke-width="2"/>';
+    s+='<text x="'+(X(d.length-1)-6).toFixed(1)+'" y="'+(Y(68)-12).toFixed(1)+'" text-anchor="end" fill="#E6EFFA" font-family="JetBrains Mono, monospace" font-size="12">68%</text>';
+    s+='<text x="'+L+'" y="'+(H-6)+'" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">14 дн. назад</text>';
+    s+='<text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">сегодня</text>';
+    d.forEach(function(v,i){ s+='<circle class="pt" data-v="'+v+'" data-i="'+i+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="11" fill="transparent"/>'; });
+    $("line").innerHTML=s;
+  })();
+
+  /* tooltip */
+  var tip=null;
+  function showTip(el,html){
+    if(!tip){ tip=document.createElement("div"); tip.className="tip"; document.body.appendChild(tip); }
+    tip.innerHTML=html; var r=el.getBoundingClientRect();
+    tip.style.left=(r.left+r.width/2)+"px"; tip.style.top=r.top+"px"; tip.hidden=false;
+  }
+  function hideTip(){ if(tip) tip.hidden=true; }
+  $("line").addEventListener("mouseover",function(e){
+    var t=e.target; if(!t.classList||!t.classList.contains("pt")) return;
+    var back=13-parseInt(t.getAttribute("data-i"),10);
+    showTip(t,'<span class="v">'+t.getAttribute("data-v")+"%</span> · "+(back===0?"сегодня":back===1?"вчера":back+" дн. назад"));
+  });
+  $("line").addEventListener("mouseleave",hideTip);
+
+  /* ---- funnel ---- */
+  (function(){
+    var f=[["Квалифицированные лиды",84,"#2499BA"],["Назначенные замеры",57,"#8E6BE8"],["Заключённые договоры",19,"#2E9E73"]];
+    var h="";
+    f.forEach(function(s,i){
+      h+='<div class="step"><span class="lab">'+s[0]+'</span><span class="v">'+s[1]+'</span>'+
+         '<span class="bar"><i style="width:'+(s[1]/f[0][1]*100).toFixed(1)+'%; background:'+s[2]+'"></i></span></div>';
+      if(i<f.length-1) h+='<div class="drop">'+Math.round(f[i+1][1]/s[1]*100)+'% переходит дальше</div>';
+    });
+    $("funnel").innerHTML=h;
+  })();
+
+  /* ---- plan thermometer ---- */
+  (function(){
+    var pct=62, n=24, h="";
+    for(var i=0;i<n;i++){
+      var on=i < Math.round(pct/100*n);
+      h+='<span class="'+(on?"on":(i===n-1?"goal":""))+'"></span>';
+    }
+    $("therm").innerHTML=h;
+    var t=0, target=62;
+    (function tick(){ t+= rm?target:2; if(t>target) t=target; $("planPct").textContent=t+"%"; if(t<target) requestAnimationFrame(tick); })();
+  })();
+
+  /* ---- managers ---- */
+  (function(){
+    var m=[["А. С.","тихие стены",92,"#2499BA"],["И. М.","ремонты",74,"#8E6BE8"],
+           ["Д. В.","ремонты",61,"#C07E2B"],["Р. К.","ремонты",38,"#C4557F"]];
+    var h="";
+    m.forEach(function(x){
+      h+='<div class="mgr"><span class="ini">'+x[0]+'</span><span><span class="nm">'+x[1]+
+         '</span><span class="track"><i style="width:'+x[2]+'%; background:'+x[3]+'"></i></span></span>'+
+         '<span class="pc">'+x[2]+'%</span></div>';
+    });
+    $("mgrs").innerHTML=h;
+  })();
+
+  /* ---- money stacks ---- */
+  function stack(el,leg,rows,total){
+    var h="",l="";
+    rows.forEach(function(r){
+      h+='<i style="width:'+(r[1]/total*100).toFixed(1)+'%; background:'+r[2]+'" title="'+r[0]+'"></i>';
+      l+='<span><b style="background:'+r[2]+'"></b>'+r[0]+' <em>'+Math.round(r[1]/1000)+'к</em></span>';
+    });
+    $(el).innerHTML=h; $(leg).innerHTML=l;
+  }
+  stack("inc","incLeg",[["Капиталстрой",420000,"#2499BA"],["Нейротемы",180000,"#8E6BE8"],
+    ["Тихие стены",95000,"#C4557F"],["Долг",60000,"#C07E2B"],["Прочее",35000,"#2E9E73"]],790000);
+  stack("exp","expLeg",[["Дом",78000,"#2499BA"],["Продукты",41000,"#8E6BE8"],
+    ["Машина",33000,"#C4557F"],["Бензин",18000,"#C07E2B"],["Прочее",22000,"#2E9E73"]],192000);
+
+  /* ---- goals ---- */
+  (function(){
+    var g=[["Конверсия 81%",84,"68 из 81"],["Спорт · 3 тренировки в месяц",67,"2 из 3"],["Infiniti QX70 · 2 000 000",31,"620 000 в копилке"]];
+    var h="";
+    g.forEach(function(x){
+      h+='<div class="mgr" style="grid-template-columns:1fr 44px"><span><span class="nm">'+x[0]+' · '+x[2]+
+         '</span><span class="track"><i style="width:'+x[1]+'%; background:linear-gradient(90deg,#2499BA,#59E7FF)"></i></span></span>'+
+         '<span class="pc">'+x[1]+'%</span></div>';
+    });
+    $("goals").innerHTML=h;
+  })();
+
+  /* tabs + rail sync (visual only in the mockup) */
+  function bindNav(sel){
+    var b=document.querySelectorAll(sel);
+    b.forEach(function(x){ x.addEventListener("click",function(){
+      b.forEach(function(y){ y.classList.remove("on"); }); x.classList.add("on"); }); });
+  }
+  bindNav(".railnav button"); bindNav(".tabs button");
 })();
 </script>
