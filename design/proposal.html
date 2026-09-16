@@ -1,0 +1,448 @@
+<title>Ночной неон</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ink-900:#04060B; --ink-800:#070B14; --ink-700:#0A1018; --ink-600:#111927;
+  --glass:rgba(17,26,42,.55); --glass-hi:rgba(46,66,102,.40); --stroke:rgba(122,160,214,.18);
+  --stroke-hot:rgba(79,227,255,.38);
+  --neon:#4FE3FF; --neon-dim:#2499BA; --rim:#2E6BFF; --hot:#FF3B52;
+  --txt:#E4EDF9; --txt-2:#9DB2CC; --txt-3:#65809E;
+  --c1:#2499BA; --c2:#8E6BE8; --c3:#C4557F; --c4:#C07E2B; --c5:#2E9E73;
+  --ok:#2E9E73; --warn:#C07E2B; --bad:#C4557F;
+  --r-s:10px; --r-m:16px; --r-l:22px;
+  --glow:0 0 22px rgba(79,227,255,.28);
+  --accent:var(--neon); --accent-soft:rgba(79,227,255,.14);
+}
+:root[data-accent="calm"]{ --accent:#7FA6C9; --accent-soft:rgba(127,166,201,.12); --glow:0 0 14px rgba(127,166,201,.18); --stroke-hot:rgba(127,166,201,.30); }
+html,body{background:var(--ink-900);}
+body{
+  margin:0; color:var(--txt); font-family:"Golos Text",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.bg{position:fixed; inset:0; z-index:-1; background:
+  radial-gradient(120% 80% at 88% 8%, rgba(46,107,255,.30), transparent 58%),
+  radial-gradient(80% 60% at 78% 55%, rgba(79,227,255,.12), transparent 62%),
+  radial-gradient(60% 50% at 12% 88%, rgba(255,59,82,.07), transparent 60%),
+  linear-gradient(180deg,#04060B,#060910 45%,#04060B);}
+.bg::after{content:""; position:absolute; inset:0; opacity:.05; mix-blend-mode:overlay;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 1px,transparent 1px 3px);}
+.wrap{max-width:1180px; margin:0 auto; padding-inline:20px; padding-block:0 72px;}
+h1,h2,h3,.disp{font-family:"Unbounded","Golos Text",sans-serif; font-weight:600; text-wrap:balance; margin:0;}
+h1{font-size:clamp(30px,5.4vw,50px); line-height:1.06; letter-spacing:-.02em;}
+h2{font-size:clamp(19px,2.6vw,25px); letter-spacing:-.01em;}
+h3{font-size:16px; letter-spacing:-.005em;}
+p{margin:0;}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+.eyebrow{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--txt-3);}
+.lede{color:var(--txt-2); max-width:62ch;}
+.muted{color:var(--txt-3); font-size:13px;}
+
+header.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; backdrop-filter:blur(16px);
+  background:linear-gradient(180deg,rgba(4,6,11,.92),rgba(4,6,11,.62)); border-bottom:1px solid var(--stroke);}
+.top-in{max-width:1180px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+.logo{display:flex; align-items:center; gap:10px; font-family:"Unbounded",sans-serif; font-weight:700; font-size:15px; letter-spacing:.01em;}
+.spark{width:11px; height:11px; border-radius:3px; background:var(--accent); box-shadow:var(--glow); flex:none;}
+.top-sp{flex:1 1 auto;}
+.seg{display:flex; gap:4px; padding:4px; border:1px solid var(--stroke); border-radius:999px; background:rgba(10,16,24,.7);}
+.seg button{font:500 12px/1 "Golos Text",sans-serif; color:var(--txt-2); background:none; border:0; padding:8px 13px; border-radius:999px; cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--accent-soft); color:var(--txt); box-shadow:inset 0 0 0 1px var(--stroke-hot);}
+.seg button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+section{padding-block:56px; border-top:1px solid rgba(122,160,214,.10);}
+section:first-of-type{border-top:0;}
+.hero{padding-block:52px 40px;}
+.hero .row{display:flex; gap:30px; align-items:flex-end; flex-wrap:wrap;}
+.hero .row > div:first-child{flex:1 1 380px;}
+.badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:20px;}
+.badge{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; padding:6px 11px; border-radius:999px;
+  border:1px solid var(--stroke); background:rgba(17,26,42,.6); color:var(--txt-2);}
+.badge b{color:var(--accent); font-weight:500;}
+
+.panel{background:var(--glass); border:1px solid var(--stroke); border-radius:var(--r-l);
+  backdrop-filter:blur(18px) saturate(1.15); box-shadow:0 22px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);}
+.panel.hot{border-color:var(--stroke-hot); box-shadow:0 22px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06), 0 0 30px rgba(79,227,255,.10);}
+.pad{padding:18px;}
+.grid{display:grid; gap:14px;}
+.sec-head{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:22px;}
+.sec-head p{color:var(--txt-2); font-size:14px;}
+
+/* ---- live mock ---- */
+.mock{display:grid; grid-template-columns:200px 1fr; gap:16px; align-items:start;}
+@media(max-width:860px){ .mock{grid-template-columns:1fr;} .rail{display:none;} }
+.rail{position:sticky; top:84px; padding:10px;}
+.rail a{display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:var(--r-s); color:var(--txt-2);
+  text-decoration:none; font-size:14px; font-weight:500;}
+.rail a.on{background:var(--accent-soft); color:var(--txt); box-shadow:inset 0 0 0 1px var(--stroke-hot);}
+.rail .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.7; flex:none;}
+.rail .grp{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em; color:var(--txt-3); padding:12px 11px 6px;}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px;}
+.kpi{padding:16px 16px 14px;}
+.kpi .lab{font-size:12.5px; color:var(--txt-3); display:flex; align-items:center; gap:7px;}
+.kpi .val{font-family:"Unbounded",sans-serif; font-weight:600; font-size:27px; letter-spacing:-.02em; margin-top:8px; font-variant-numeric:tabular-nums;}
+.kpi .sub{font-size:12px; color:var(--txt-2); margin-top:4px;}
+.bar{height:5px; border-radius:99px; background:rgba(122,160,214,.14); margin-top:12px; position:relative; overflow:hidden;}
+.bar i{position:absolute; inset:0 auto 0 0; border-radius:99px; background:linear-gradient(90deg,var(--c1),var(--accent));}
+.tick{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--txt-2); opacity:.55; border-radius:2px;}
+.chip{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.05em; padding:3px 8px; border-radius:6px; border:1px solid transparent;}
+.chip.ok{color:#7FD9B4; background:rgba(46,158,115,.14); border-color:rgba(46,158,115,.35);}
+.chip.warn{color:#E0B073; background:rgba(192,126,43,.14); border-color:rgba(192,126,43,.35);}
+.chip.bad{color:#E88CAB; background:rgba(196,85,127,.14); border-color:rgba(196,85,127,.35);}
+
+.two{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media(max-width:760px){ .two{grid-template-columns:1fr;} }
+.card-h{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
+.card-h h3{font-size:14.5px;}
+
+.ring-row{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+.ring{position:relative; flex:none;}
+.ring figcaption{position:absolute; inset:0; display:grid; place-content:center; text-align:center;}
+.ring .big{font-family:"Unbounded",sans-serif; font-size:24px; font-weight:600; font-variant-numeric:tabular-nums;}
+.ring .cap{font-size:10.5px; color:var(--txt-3);}
+
+.rows{display:flex; flex-direction:column; gap:11px;}
+.row-item{display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center;}
+.row-item .nm{font-size:13.5px; color:var(--txt-2);}
+.row-item .amt{font-family:"JetBrains Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums;}
+.track{grid-column:1/-1; height:9px; border-radius:5px; background:rgba(122,160,214,.10); overflow:hidden;}
+.track i{display:block; height:100%; border-radius:5px;}
+
+.task{display:flex; align-items:flex-start; gap:11px; padding:9px 0; border-bottom:1px solid rgba(122,160,214,.09);}
+.task:last-child{border-bottom:0;}
+.task input{appearance:none; width:19px; height:19px; margin:1px 0 0; border-radius:6px; border:1.5px solid var(--stroke-hot);
+  background:rgba(10,16,24,.8); cursor:pointer; flex:none; display:grid; place-content:center;}
+.task input:checked{background:var(--accent-soft); box-shadow:var(--glow);}
+.task input:checked::after{content:"✓"; font-size:12px; color:var(--accent); line-height:1;}
+.task input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.task label{font-size:14px; cursor:pointer;}
+.task input:checked + label{color:var(--txt-3); text-decoration:line-through;}
+.task .t{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3); margin-left:auto; padding-left:8px;}
+
+.agents{display:flex; flex-direction:column; gap:9px;}
+.agent{display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:var(--r-s);
+  background:rgba(10,16,24,.5); border:1px solid rgba(122,160,214,.10);}
+.agent .pulse{width:7px; height:7px; border-radius:50%; background:var(--ok); box-shadow:0 0 10px currentColor; flex:none;}
+.agent .pulse.wait{background:var(--txt-3); box-shadow:none;}
+.agent .nm{font-size:13.5px; flex:1 1 auto;}
+.agent .when{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3);}
+
+.news li{list-style:none; padding:9px 0; border-bottom:1px solid rgba(122,160,214,.09); font-size:13.5px; color:var(--txt-2);}
+.news li:last-child{border-bottom:0;}
+.news{margin:0; padding:0;}
+.news .src{font-family:"JetBrains Mono",monospace; font-size:10.5px; color:var(--txt-3); display:block; margin-top:3px;}
+
+.wx{display:flex; align-items:center; gap:16px;}
+.wx .deg{font-family:"Unbounded",sans-serif; font-size:38px; font-weight:600; letter-spacing:-.03em;}
+
+/* ---- spec ---- */
+.sw-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
+.sw{border-radius:var(--r-m); overflow:hidden; border:1px solid var(--stroke); background:rgba(10,16,24,.5);}
+.sw .fill{height:66px;}
+.sw .meta{padding:9px 11px;}
+.sw .nm{font-size:12.5px;}
+.sw .hex{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--txt-3);}
+.type-row{display:grid; grid-template-columns:150px 1fr; gap:16px; padding:16px 0; border-bottom:1px solid rgba(122,160,214,.09); align-items:baseline;}
+@media(max-width:640px){ .type-row{grid-template-columns:1fr; gap:6px;} }
+.type-row:last-child{border-bottom:0;}
+.notes{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px;}
+.note h3{margin-bottom:7px; font-size:14.5px;}
+.note p{font-size:13.5px; color:var(--txt-2);}
+.note .dotc{width:9px; height:9px; border-radius:3px; display:inline-block; margin-right:7px;}
+
+.phone{width:290px; max-width:100%; border-radius:34px; padding:11px; border:1px solid var(--stroke-hot);
+  background:linear-gradient(180deg,rgba(23,35,56,.75),rgba(8,12,20,.85)); box-shadow:0 28px 60px rgba(0,0,0,.6);}
+.phone-in{border-radius:25px; background:var(--ink-800); padding:14px 13px 9px; border:1px solid rgba(122,160,214,.12);}
+.tabbar{display:flex; justify-content:space-between; gap:3px; margin-top:13px; padding-top:9px; border-top:1px solid rgba(122,160,214,.12);}
+.tabbar span{font-size:9.5px; color:var(--txt-3); text-align:center; flex:1;}
+.tabbar span.on{color:var(--accent);}
+.tabbar b{display:block; width:17px; height:17px; margin:0 auto 4px; border-radius:6px; border:1.5px solid currentColor; opacity:.85;}
+
+.steps{counter-reset:s; display:grid; gap:12px;}
+.step{display:flex; gap:13px; align-items:flex-start;}
+.step::before{counter-increment:s; content:counter(s); font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--accent);
+  border:1px solid var(--stroke-hot); border-radius:8px; width:26px; height:26px; display:grid; place-content:center; flex:none;}
+.step p{font-size:14px; color:var(--txt-2);}
+.step b{color:var(--txt); font-weight:600;}
+
+.tip{position:fixed; pointer-events:none; z-index:40; background:rgba(8,12,20,.95); border:1px solid var(--stroke-hot);
+  border-radius:9px; padding:7px 10px; font-size:12px; box-shadow:0 10px 26px rgba(0,0,0,.6); transform:translate(-50%,-125%);}
+.tip .v{font-family:"JetBrains Mono",monospace; color:var(--accent);}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+</style>
+
+<div class="bg"></div>
+
+<header class="top">
+  <div class="top-in">
+    <span class="logo"><span class="spark"></span>Poshumim</span>
+    <span class="top-sp"></span>
+    <span class="muted" style="font-size:12px">Акцент</span>
+    <div class="seg" role="group" aria-label="Насыщенность акцента">
+      <button type="button" id="accNeon" aria-pressed="true">Неон</button>
+      <button type="button" id="accCalm" aria-pressed="false">Приглушённый</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="row">
+    <div>
+      <p class="eyebrow">Дизайн-направление 01</p>
+      <h1 style="margin-top:10px">Ночной&nbsp;неон</h1>
+      <p class="lede" style="margin-top:16px">Интерфейс снят с вашего референса напрямую: почти чёрная глубина, холодный контровой свет справа, тонкие светящиеся линии вместо рамок и красный, который включается только когда что-то горит.</p>
+      <div class="badges">
+        <span class="badge">Фон <b>полупрозрачное стекло</b></span>
+        <span class="badge">Тема <b>только тёмная</b></span>
+        <span class="badge">Шрифты <b>с кириллицей</b></span>
+        <span class="badge">Палитра <b>проверена на дальтонизм</b></span>
+      </div>
+    </div>
+    <div class="panel pad" style="flex:0 1 265px">
+      <p class="eyebrow">Принцип</p>
+      <p style="margin-top:9px; font-size:14px; color:var(--txt-2)">Свет — это информация. Светится только то, что требует внимания: текущая метрика, просроченная сделка, кнопка действия. Остальное лежит в тени и не спорит за взгляд.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Главная панель</h2>
+    <p>Живой фрагмент в предлагаемом стиле. Кликайте по задачам и наводите на график.</p>
+    <span class="chip warn" style="margin-left:auto">Демо-данные</span>
+  </div>
+
+  <div class="mock">
+    <nav class="rail panel" aria-label="Разделы">
+      <p class="grp">Разделы</p>
+      <a href="#" class="on"><span class="dot"></span>Главная</a>
+      <a href="#"><span class="dot"></span>Работа</a>
+      <a href="#"><span class="dot"></span>Финансы</a>
+      <a href="#"><span class="dot"></span>Развитие</a>
+      <a href="#"><span class="dot"></span>Задачи</a>
+    </nav>
+
+    <div class="grid">
+      <div class="kpis">
+        <div class="panel kpi hot">
+          <div class="lab">Конверсия в замер <span class="chip warn">цель 80%</span></div>
+          <div class="val mono">68<span style="font-size:17px">%</span></div>
+          <div class="sub">до 18 ноября осталось 12 п.п.</div>
+          <div class="bar"><i style="width:68%"></i><span class="tick" style="left:80%"></span></div>
+        </div>
+        <div class="panel kpi">
+          <div class="lab">План месяца</div>
+          <div class="val mono">10,6<span style="font-size:17px"> млн</span></div>
+          <div class="sub">62% от 17 000 000</div>
+          <div class="bar"><i style="width:62%"></i></div>
+        </div>
+        <div class="panel kpi">
+          <div class="lab">Квалы за месяц</div>
+          <div class="val mono">84</div>
+          <div class="sub">замеров 57 · договоров 19</div>
+        </div>
+        <div class="panel kpi">
+          <div class="lab">Проблемные сделки <span class="chip bad">3</span></div>
+          <div class="val mono">3</div>
+          <div class="sub">без касания более 48 часов</div>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="panel pad">
+          <div class="card-h"><h3>Конверсия, 14 дней</h3><span class="chip ok">+16 п.п.</span></div>
+          <div class="ring-row">
+            <figure class="ring" style="margin:0">
+              <svg width="112" height="112" viewBox="0 0 112 112" role="img" aria-label="Текущая конверсия 68 процентов при цели 80">
+                <circle cx="56" cy="56" r="47" fill="none" stroke="rgba(122,160,214,.16)" stroke-width="9"></circle>
+                <circle cx="56" cy="56" r="47" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round"
+                  stroke-dasharray="295.3" stroke-dashoffset="94.5" transform="rotate(-90 56 56)"></circle>
+                <line x1="56" y1="4" x2="56" y2="16" stroke="#E4EDF9" stroke-width="2.5" stroke-linecap="round"
+                  transform="rotate(288 56 56)"></line>
+              </svg>
+              <figcaption><span class="big">68%</span><span class="cap">цель 80%</span></figcaption>
+            </figure>
+            <div style="flex:1 1 180px; min-width:170px">
+              <svg id="spark" viewBox="0 0 260 78" preserveAspectRatio="none" style="width:100%; height:78px; overflow:visible" role="img" aria-label="Динамика конверсии за 14 дней, с 52 до 68 процентов"></svg>
+              <p class="muted mono" style="margin-top:6px">квал → назначенный замер, %</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel pad">
+          <div class="card-h"><h3>Доход за месяц</h3><span class="mono" style="font-size:13px">790 000 ₽</span></div>
+          <div class="rows" id="income"></div>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="panel pad">
+          <div class="card-h"><h3>Дела на сегодня</h3><span class="chip ok" id="taskPct">0%</span></div>
+          <div id="tasks"></div>
+          <div class="bar" style="margin-top:14px"><i id="taskBar" style="width:0%"></i></div>
+        </div>
+
+        <div class="grid">
+          <div class="panel pad">
+            <div class="card-h"><h3>Агенты</h3><span class="muted mono">МСК</span></div>
+            <div class="agents">
+              <div class="agent"><span class="pulse"></span><span class="nm">Отчётник · Google Sheets</span><span class="when">08:30 ✓</span></div>
+              <div class="agent"><span class="pulse"></span><span class="nm">Сводка в Telegram</span><span class="when">09:00 ✓</span></div>
+              <div class="agent"><span class="pulse wait"></span><span class="nm">Секретарь · список дел</span><span class="when">09:05</span></div>
+              <div class="agent"><span class="pulse"></span><span class="nm">РОП-аналитик · AmoCRM</span><span class="when">онлайн</span></div>
+            </div>
+          </div>
+          <div class="panel pad">
+            <div class="card-h"><h3>Тамбов</h3><span class="muted">за сутки</span></div>
+            <div class="wx" style="margin-bottom:12px">
+              <span class="deg mono">+12°</span>
+              <p class="muted" style="font-size:13px">Ветер 4 м/с, к вечеру дождь.<br>Замеры после 18:00 лучше перенести.</p>
+            </div>
+            <ul class="news">
+              <li>На Советской меняют теплотрассу, участок перекрыт до пятницы<span class="src">городская повестка</span></li>
+              <li>Ставка по семейной ипотеке снова в фокусе застройщиков<span class="src">рынок</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Палитра</h2><p>Пять цветов серий проверены валидатором: различимы при дальтонизме и дают контраст выше 3:1 на тёмном фоне.</p></div>
+  <div class="sw-grid">
+    <div class="sw"><div class="fill" style="background:#04060B"></div><div class="meta"><div class="nm">Глубина</div><div class="hex">#04060B</div></div></div>
+    <div class="sw"><div class="fill" style="background:rgba(17,26,42,.85)"></div><div class="meta"><div class="nm">Стекло панели</div><div class="hex">rgba(17,26,42,.55)</div></div></div>
+    <div class="sw"><div class="fill" style="background:#4FE3FF"></div><div class="meta"><div class="nm">Неон · акцент</div><div class="hex">#4FE3FF</div></div></div>
+    <div class="sw"><div class="fill" style="background:#2E6BFF"></div><div class="meta"><div class="nm">Контровой свет</div><div class="hex">#2E6BFF</div></div></div>
+    <div class="sw"><div class="fill" style="background:#FF3B52"></div><div class="meta"><div class="nm">Тревога</div><div class="hex">#FF3B52</div></div></div>
+  </div>
+  <div class="sw-grid" style="margin-top:12px">
+    <div class="sw"><div class="fill" style="background:#2499BA"></div><div class="meta"><div class="nm">Серия 1</div><div class="hex">#2499BA</div></div></div>
+    <div class="sw"><div class="fill" style="background:#8E6BE8"></div><div class="meta"><div class="nm">Серия 2</div><div class="hex">#8E6BE8</div></div></div>
+    <div class="sw"><div class="fill" style="background:#C4557F"></div><div class="meta"><div class="nm">Серия 3</div><div class="hex">#C4557F</div></div></div>
+    <div class="sw"><div class="fill" style="background:#C07E2B"></div><div class="meta"><div class="nm">Серия 4</div><div class="hex">#C07E2B</div></div></div>
+    <div class="sw"><div class="fill" style="background:#2E9E73"></div><div class="meta"><div class="nm">Серия 5</div><div class="hex">#2E9E73</div></div></div>
+  </div>
+  <div class="notes" style="margin-top:22px">
+    <div class="note"><h3><span class="dotc" style="background:#4FE3FF"></span>Неон — только акцент</h3><p>Свечение достаётся текущему значению, активному разделу и кнопке действия. Если светится всё, не светится ничего.</p></div>
+    <div class="note"><h3><span class="dotc" style="background:#FF3B52"></span>Красный зарезервирован</h3><p>Красный не бывает «просто серией графика». Он означает просрочку, провал плана или сорванный замер.</p></div>
+    <div class="note"><h3><span class="dotc" style="background:#2E6BFF"></span>Синий держит глубину</h3><p>Холодный градиент справа сверху повторяет свет со стены на фото и задаёт объём без единой лишней рамки.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Типографика</h2><p>Три гарнитуры, все с полноценной кириллицей. Ни одного «квадратика» вместо буквы.</p></div>
+  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">Unbounded 600</div><div class="muted">заголовки и крупные цифры</div></div><div class="disp" style="font-size:30px">Конверсия 68%</div></div>
+  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">Golos Text 400/600</div><div class="muted">весь основной текст</div></div><div style="font-size:16px">Квалифицированный лид переходит в назначенный замер — основная метрика отдела.</div></div>
+  <div class="type-row"><div><div class="mono" style="font-size:12px; color:var(--txt-3)">JetBrains Mono 500</div><div class="muted">суммы, время, таблицы</div></div><div class="mono" style="font-size:16px">17 000 000 ₽ · 08:30 МСК · +12°</div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Телефон</h2><p>Разделы уезжают в нижнюю панель, плитки встают в одну колонку, стекло становится плотнее — читаемо даже на солнце.</p></div>
+  <div style="display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start">
+    <div class="phone">
+      <div class="phone-in">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:11px">
+          <span class="logo" style="font-size:12px"><span class="spark" style="width:8px;height:8px"></span>Главная</span>
+          <span class="mono" style="font-size:10px; color:var(--txt-3)">09:41</span>
+        </div>
+        <div class="panel kpi hot" style="padding:13px">
+          <div class="lab" style="font-size:11px">Конверсия в замер</div>
+          <div class="val mono" style="font-size:23px">68%</div>
+          <div class="bar"><i style="width:68%"></i><span class="tick" style="left:80%"></span></div>
+        </div>
+        <div class="panel kpi" style="padding:13px; margin-top:9px">
+          <div class="lab" style="font-size:11px">План месяца</div>
+          <div class="val mono" style="font-size:23px">62%</div>
+          <div class="bar"><i style="width:62%"></i></div>
+        </div>
+        <div class="tabbar">
+          <span class="on"><b></b>Главная</span><span><b></b>Работа</span><span><b></b>Финансы</span><span><b></b>Рост</span><span><b></b>Дела</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 300px">
+      <div class="note"><h3>Слабый интернет</h3><p>Экран открывается из кеша мгновенно и показывает время последнего обновления. Ввод расходов и галочки работают без сети и досылаются, когда связь вернётся.</p></div>
+      <div class="note"><h3>Палец, а не курсор</h3><p>Все нажимаемые элементы не меньше 44 пикселей. Галочка выполнения — крупная, попадаешь не глядя.</p></div>
+      <div class="note"><h3>Стекло дозировано</h3><p>Размытие фона стоит денег по батарее, поэтому на телефоне слоёв меньше, а контраст текста выше.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Что дальше</h2></div>
+  <div class="steps">
+    <div class="step"><p><b>Вы смотрите этот экран</b> и говорите, что нравится, а что переделать: плотность, размер цифр, количество свечения.</p></div>
+    <div class="step"><p><b>Я собираю остальные четыре раздела</b> в утверждённом стиле: Работа, Финансы, Развитие, Задачи.</p></div>
+    <div class="step"><p><b>Вы даёте доступы</b> к AmoCRM, таблице отчёта, Telegram и календарю. Инструкции пришлю по шагам.</p></div>
+    <div class="step"><p><b>Включаю агентов по расписанию</b> и мы проверяем боевой день: 08:30 отчёт, 09:00 сводка, 09:05 список дел.</p></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, n=document.getElementById('accNeon'), c=document.getElementById('accCalm');
+  function set(mode){ root.setAttribute('data-accent',mode);
+    n.setAttribute('aria-pressed', mode==='neon'); c.setAttribute('aria-pressed', mode==='calm');
+    try{ localStorage.setItem('posh-accent',mode); }catch(e){} }
+  n.addEventListener('click',function(){set('neon');}); c.addEventListener('click',function(){set('calm');});
+  try{ var s=localStorage.getItem('posh-accent'); if(s) set(s); }catch(e){}
+
+  var income=[{n:'Капиталстрой',v:420000,c:'#2499BA'},{n:'Нейротемы',v:180000,c:'#8E6BE8'},
+              {n:'Тихие стены',v:95000,c:'#C4557F'},{n:'Долг',v:60000,c:'#C07E2B'},{n:'Прочее',v:35000,c:'#2E9E73'}];
+  var max=420000, box=document.getElementById('income'), html='';
+  income.forEach(function(i){
+    html+='<div class="row-item"><span class="nm">'+i.n+'</span><span class="amt">'+i.v.toLocaleString('ru-RU')+' ₽</span>'+
+          '<span class="track"><i style="width:'+(i.v/max*100)+'%; background:'+i.c+'"></i></span></div>';
+  });
+  box.innerHTML=html;
+
+  var tasks=[['Планёрка с менеджерами','09:30',true],['Разобрать 3 зависшие сделки','11:00',false],
+             ['Прозвон отложенного спроса','14:00',false],['Замер на Мичуринской','16:30',false],
+             ['Свести отчёт за неделю','18:00',false]];
+  var tw=document.getElementById('tasks'), th='';
+  tasks.forEach(function(t,i){
+    th+='<div class="task"><input type="checkbox" id="t'+i+'"'+(t[2]?' checked':'')+'>'+
+        '<label for="t'+i+'">'+t[0]+'</label><span class="t">'+t[1]+'</span></div>';
+  });
+  tw.innerHTML=th;
+  function recount(){
+    var all=tw.querySelectorAll('input'), done=tw.querySelectorAll('input:checked').length;
+    var p=Math.round(done/all.length*100);
+    document.getElementById('taskPct').textContent=p+'%';
+    document.getElementById('taskBar').style.width=p+'%';
+  }
+  tw.addEventListener('change',recount); recount();
+
+  var data=[52,55,53,58,60,59,62,61,64,66,65,67,66,68], W=260, H=78, lo=48, hi=72;
+  var x=function(i){ return i*(W/(data.length-1)); }, y=function(v){ return H-((v-lo)/(hi-lo))*H; };
+  var d='', pts='';
+  data.forEach(function(v,i){ d+=(i?' L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1); });
+  var area=d+' L'+W+' '+H+' L0 '+H+' Z';
+  data.forEach(function(v,i){ pts+='<circle class="pt" data-v="'+v+'" data-i="'+i+'" cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="9" fill="transparent"></circle>'; });
+  document.getElementById('spark').innerHTML=
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0%" stop-color="#4FE3FF" stop-opacity=".26"/><stop offset="100%" stop-color="#4FE3FF" stop-opacity="0"/></linearGradient></defs>'+
+    '<path d="'+area+'" fill="url(#g)"></path>'+
+    '<path d="'+d+'" fill="none" stroke="#4FE3FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>'+
+    '<circle cx="'+x(data.length-1)+'" cy="'+y(68)+'" r="4" fill="#4FE3FF" stroke="#04060B" stroke-width="2"></circle>'+pts;
+
+  var tip=null;
+  document.getElementById('spark').addEventListener('mouseover',function(e){
+    var t=e.target; if(!t.classList||!t.classList.contains('pt')) return;
+    if(!tip){ tip=document.createElement('div'); tip.className='tip'; document.body.appendChild(tip); }
+    var day=14-parseInt(t.getAttribute('data-i'),10);
+    tip.innerHTML='<span class="v">'+t.getAttribute('data-v')+'%</span> · '+(day===1?'вчера':day+' дн. назад');
+    var r=t.getBoundingClientRect();
+    tip.style.left=(r.left+r.width/2)+'px'; tip.style.top=r.top+'px'; tip.hidden=false;
+  });
+  document.getElementById('spark').addEventListener('mouseleave',function(){ if(tip) tip.hidden=true; });
+})();
+</script>
