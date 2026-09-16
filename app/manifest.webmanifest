@@ -1,0 +1,16 @@
+{
+  "name": "Shumm",
+  "short_name": "Shumm",
+  "description": "Личное рабочее пространство: работа, финансы, развитие и ежедневные дела",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#04060A",
+  "theme_color": "#04060A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
