@@ -350,10 +350,14 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div class="mh"><h3>Источник данных</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="srcState">не задан</span></div>
         <p class="sub" style="margin:0 0 12px">Shumm спрашивает цифры у вашего n8n, а токен AmoCRM остаётся внутри n8n. Адрес и ключ хранятся только на этом устройстве.</p>
         <div class="form" style="grid-template-columns:1fr 200px auto auto">
-          <input type="text" id="srcUrl" placeholder="https://ваш-n8n/webhook/shumm-work" aria-label="Адрес вебхука">
-          <input type="text" id="srcKey" placeholder="Ключ (если включён)" aria-label="Ключ доступа">
+          <input type="text" id="srcUrl" placeholder="Адрес скрипта, заканчивается на /exec" aria-label="Адрес источника">
+          <input type="text" id="srcKey" placeholder="Ключ доступа" aria-label="Ключ доступа">
           <button class="btn" id="srcSave">Подключить</button>
           <button class="btn ghost" id="srcClear">Сбросить</button>
+        </div>
+        <div class="form" style="grid-template-columns:1fr auto; margin-top:10px">
+          <input type="number" id="srcPlan" placeholder="План месяца, ₽" aria-label="План месяца">
+          <button class="btn ghost" id="srcPlanSave">Сохранить план</button>
         </div>
         <p class="sub" id="srcMsg" style="margin-top:10px"></p>
       </section>
@@ -507,8 +511,8 @@ var WORK={
             {id:"4390",title:"Ремонт под ключ, Мичуринская",note:"замер перенесён дважды",age:"2 дн",level:"bad"},
             {id:"4377",title:"Отложенный спрос",note:"нет следующего шага",age:"4 дн",level:"warn"}]
 };
-var SRC={url:"",key:""};
-try{ var sv=JSON.parse(localStorage.getItem("shumm-src")||"{}"); SRC.url=sv.url||""; SRC.key=sv.key||""; }catch(e){}
+var SRC={url:"",key:"",plan:0};
+try{ var sv=JSON.parse(localStorage.getItem("shumm-src")||"{}"); SRC.url=sv.url||""; SRC.key=sv.key||""; SRC.plan=sv.plan||0; }catch(e){}
 
 function localLoad(){
   try{ var r=localStorage.getItem("shumm"); if(r){ var o=JSON.parse(r);
@@ -923,7 +927,7 @@ function srcJsonp(){
 function applyWork(d, изКеша){
   if(!d || d.error) throw new Error(d && d.error ? d.error : "пустой ответ");
   if(!изКеша){ try{ localStorage.setItem("shumm-work",JSON.stringify(d)); }catch(e){} }
-  if(d.plan) WORK.plan={target:d.plan.target||WORK.plan.target, done:d.plan.done||0};
+  if(d.plan) WORK.plan={target:SRC.plan||d.plan.target||WORK.plan.target, done:d.plan.done||0};
   if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
     deadline:d.conversion.deadline||WORK.conversion.deadline,
     history:(d.conversion.history||[]).map(function(h){ return typeof h==="number"?h:h.v; })};
@@ -973,8 +977,16 @@ if($("#srcSave")){
     try{ localStorage.setItem("shumm-src",JSON.stringify(SRC)); }catch(e){}
     loadWork();
   });
+  $("#srcPlan").value=SRC.plan||"";
+  $("#srcPlanSave").addEventListener("click",function(){
+    SRC.plan=parseFloat($("#srcPlan").value)||0;
+    try{ localStorage.setItem("shumm-src",JSON.stringify(SRC)); }catch(e){}
+    if(SRC.plan) WORK.plan.target=SRC.plan;
+    drawTherm();
+    srcMsg(SRC.plan?("План месяца: "+SRC.plan.toLocaleString("ru-RU")+" \u20BD."):"План возьмётся из источника.");
+  });
   $("#srcClear").addEventListener("click",function(){
-    SRC={url:"",key:""}; $("#srcUrl").value=""; $("#srcKey").value="";
+    SRC={url:"",key:"",plan:0}; $("#srcUrl").value=""; $("#srcKey").value=""; $("#srcPlan").value="";
     try{ localStorage.removeItem("shumm-src"); }catch(e){}
     WORK.demo=true; drawWork(); $("#srcState").textContent="не задан"; srcMsg("Источник сброшен, показаны демо-цифры.");
   });
