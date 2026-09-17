@@ -261,7 +261,7 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
       </section>
 
       <section class="mod c4">
-        <div class="mh"><h3>Конверсия в замер</h3><span class="sp"></span><span class="demo">демо</span></div>
+        <div class="mh"><h3>Конверсия в замер</h3><span class="sp"></span><span class="demo" id="h-convSrc">демо</span></div>
         <svg id="gauge" viewBox="0 0 240 146" style="width:100%;height:auto;display:block" role="img"
           aria-label="Конверсия квалифицированного лида в назначенный замер 68 процентов при цели 80"></svg>
         <p class="sub" style="text-align:center">до 18 ноября нужно ещё <b style="color:var(--ink)">12 п.п.</b></p>
@@ -278,18 +278,16 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
       </section>
 
       <section class="mod c4">
-        <div class="mh"><h3>План месяца</h3><span class="sp"></span><span class="demo">демо</span></div>
+        <div class="mh"><h3>План месяца</h3><span class="sp"></span><span class="demo" id="h-planSrc">демо</span></div>
         <div class="therm" id="h-therm"></div>
         <div style="display:flex; justify-content:space-between; align-items:flex-end">
-          <span class="num" style="font-size:36px">62%</span>
-          <span class="sub" style="text-align:right">10,54 из 17 млн</span></div>
+          <span class="num" style="font-size:36px" id="h-planPct">0%</span>
+          <span class="sub" style="text-align:right" id="h-planSub">—</span></div>
       </section>
 
       <section class="mod c3">
-        <div class="mh"><h3>Требует вас</h3><span class="sp"></span><span class="tag bad">3</span></div>
-        <div class="alert"><span class="b"></span><span>Сделка №4412 без касания</span><span class="t">61 ч</span></div>
-        <div class="alert"><span class="b"></span><span>Замер перенесён дважды</span><span class="t">2 дн</span></div>
-        <div class="alert"><span class="b w"></span><span>В отчёте 2 пустые клетки</span><span class="t">08:30</span></div>
+        <div class="mh"><h3>Требует вас</h3><span class="sp"></span><span class="tag bad" id="h-probN">0</span></div>
+        <div id="h-problems"></div>
       </section>
 
       <section class="mod c6">
@@ -318,9 +316,7 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
 
     <!-- ================= WORK ================= -->
     <div class="grid view" id="v-work" hidden>
-      <div class="c12">
-        <div class="notice"><b>!</b><span>AmoCRM ещё не подключён, поэтому все рабочие цифры на этом экране — демонстрационные. После выдачи доступа они заменятся вашими без изменения вёрстки.</span></div>
-      </div>
+      <div class="c12" id="workNotice"></div>
       <section class="mod c7">
         <div class="mh"><h3>Конверсия · 14 дней</h3><span class="sp"></span><span class="tag ok">+16 п.п.</span></div>
         <svg id="line" viewBox="0 0 560 190" style="width:100%;height:auto;display:block;overflow:visible" role="img"
@@ -335,10 +331,8 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div id="mgrs"></div>
       </section>
       <section class="mod c6">
-        <div class="mh"><h3>Проблемные сделки</h3><span class="sp"></span><span class="tag bad">3</span></div>
-        <div class="alert"><span class="b"></span><span>№4412 · квал с сайта, Тихие стены<br><span class="sub" style="margin:0">без касания</span></span><span class="t">61 ч</span></div>
-        <div class="alert"><span class="b"></span><span>№4390 · ремонт под ключ, Мичуринская<br><span class="sub" style="margin:0">замер перенесён дважды</span></span><span class="t">2 дн</span></div>
-        <div class="alert"><span class="b w"></span><span>№4377 · отложенный спрос<br><span class="sub" style="margin:0">нет следующего шага</span></span><span class="t">4 дн</span></div>
+        <div class="mh"><h3>Проблемные сделки</h3><span class="sp"></span><span class="tag bad" id="w-probN">0</span></div>
+        <div id="w-problems"></div>
       </section>
       <section class="mod c6">
         <div class="mh"><h3>Отчёт 08:30</h3><span class="sp"></span><span class="tag warn">2 пустые клетки</span></div>
@@ -350,6 +344,18 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div class="mh"><h3>Разбор РОП-аналитика</h3><span class="sp"></span></div>
         <p class="advice" id="ropText">Агент разбирает работу менеджеров по регламенту и сделкам. Нажмите, чтобы получить разбор по текущим цифрам.</p>
         <button class="btn" id="ropBtn" style="margin-top:12px">Получить разбор</button>
+      </section>
+
+      <section class="mod c12">
+        <div class="mh"><h3>Источник данных</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="srcState">не задан</span></div>
+        <p class="sub" style="margin:0 0 12px">Shumm спрашивает цифры у вашего n8n, а токен AmoCRM остаётся внутри n8n. Адрес и ключ хранятся только на этом устройстве.</p>
+        <div class="form" style="grid-template-columns:1fr 200px auto auto">
+          <input type="text" id="srcUrl" placeholder="https://ваш-n8n/webhook/shumm-work" aria-label="Адрес вебхука">
+          <input type="text" id="srcKey" placeholder="Ключ (если включён)" aria-label="Ключ доступа">
+          <button class="btn" id="srcSave">Подключить</button>
+          <button class="btn ghost" id="srcClear">Сбросить</button>
+        </div>
+        <p class="sub" id="srcMsg" style="margin-top:10px"></p>
       </section>
     </div>
 
@@ -488,6 +494,21 @@ var S={
          {id:"g3",name:"Infiniti QX70",target:2000000,current:0,money:true}]
 };
 var DB=null, refs={}, saveT={};
+
+/* Рабочие цифры. По умолчанию демонстрационные; заменяются ответом n8n. */
+var WORK={
+  demo:true, updated:null,
+  plan:{target:17000000, done:10540000},
+  conversion:{current:68, goal:80, deadline:"18 ноября", history:[52,55,53,58,60,59,62,61,64,66,65,67,66,68]},
+  funnel:{quals:84, measures:57, contracts:19},
+  managers:[{name:"А. С.",area:"тихие стены",pct:92},{name:"И. М.",area:"ремонты",pct:74},
+            {name:"Д. В.",area:"ремонты",pct:61},{name:"Р. К.",area:"ремонты",pct:38}],
+  problems:[{id:"4412",title:"Квал с сайта, Тихие стены",note:"без касания",age:"61 ч",level:"bad"},
+            {id:"4390",title:"Ремонт под ключ, Мичуринская",note:"замер перенесён дважды",age:"2 дн",level:"bad"},
+            {id:"4377",title:"Отложенный спрос",note:"нет следующего шага",age:"4 дн",level:"warn"}]
+};
+var SRC={url:"",key:""};
+try{ var sv=JSON.parse(localStorage.getItem("shumm-src")||"{}"); SRC.url=sv.url||""; SRC.key=sv.key||""; }catch(e){}
 
 function localLoad(){
   try{ var r=localStorage.getItem("shumm"); if(r){ var o=JSON.parse(r);
@@ -736,9 +757,12 @@ function renderHome(){
 }
 function renderAll(){ renderTasks(); renderMoney(); renderGoals(); renderHome(); }
 
-/* ---------------- charts ---------------- */
+/* ---------------- work rendering ---------------- */
+function fmtM(n){ return (n/1000000).toFixed(2).replace(".",",")+" млн"; }
 function drawGauge(){
-  var val=68, goal=80, cx=120, cy=120, r=90, w=15, el=document.getElementById("gauge"); if(!el) return;
+  var el=document.getElementById("gauge"); if(!el) return;
+  var val=Math.max(0,Math.min(100,WORK.conversion.current||0)), goal=WORK.conversion.goal||80;
+  var cx=120, cy=120, r=90, w=15;
   function pt(p,rr){ var a=Math.PI*(1-p/100); return [cx+rr*Math.cos(a), cy-rr*Math.sin(a)]; }
   function arc(p0,p1){ var a=pt(p0,r), b=pt(p1,r);
     return "M"+a[0].toFixed(1)+" "+a[1].toFixed(1)+" A"+r+" "+r+" 0 "+((p1-p0)>50?1:0)+" 1 "+b[0].toFixed(1)+" "+b[1].toFixed(1); }
@@ -747,7 +771,7 @@ function drawGauge(){
     '<filter id="gl" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4.5" result="b"/>'+
     '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
   s+='<path d="'+arc(0,100)+'" fill="none" stroke="rgba(120,158,205,.14)" stroke-width="'+w+'"/>';
-  s+='<path d="'+arc(0,val)+'" fill="none" stroke="url(#gg)" stroke-width="'+w+'" filter="url(#gl)"/>';
+  if(val>0) s+='<path d="'+arc(0,val)+'" fill="none" stroke="url(#gg)" stroke-width="'+w+'" filter="url(#gl)"/>';
   for(var v=0; v<=100; v+=10){
     var a=pt(v,r+w/2+3), b=pt(v,r+w/2+(v%50===0?10:6));
     s+='<line x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+
@@ -756,67 +780,167 @@ function drawGauge(){
   var g0=pt(goal,r-w/2-2), g1=pt(goal,r+w/2+12), gl=pt(goal,r+w/2+20), e=pt(val,r);
   s+='<line x1="'+g0[0].toFixed(1)+'" y1="'+g0[1].toFixed(1)+'" x2="'+g1[0].toFixed(1)+'" y2="'+g1[1].toFixed(1)+
      '" stroke="#FFB55C" stroke-width="2.5" stroke-linecap="round"/>';
-  s+='<text x="'+gl[0].toFixed(1)+'" y="'+(gl[1]+4).toFixed(1)+'" text-anchor="middle" fill="#FFB55C" font-family="JetBrains Mono, monospace" font-size="11">80</text>';
+  s+='<text x="'+gl[0].toFixed(1)+'" y="'+(gl[1]+4).toFixed(1)+'" text-anchor="middle" fill="#FFB55C" font-family="JetBrains Mono, monospace" font-size="11">'+goal+'</text>';
   s+='<circle cx="'+e[0].toFixed(1)+'" cy="'+e[1].toFixed(1)+'" r="6" fill="#59E7FF" stroke="#04060A" stroke-width="2.5"/>';
-  s+='<text x="'+cx+'" y="113" text-anchor="middle" fill="#E6EFFA" font-family="Oswald, sans-serif" font-weight="600" font-size="46">68%</text>';
-  s+='<text x="'+cx+'" y="133" text-anchor="middle" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">КВАЛ → ЗАМЕР</text>';
+  s+='<text x="'+cx+'" y="113" text-anchor="middle" fill="#E6EFFA" font-family="Oswald, sans-serif" font-weight="600" font-size="46">'+val+'%</text>';
+  s+='<text x="'+cx+'" y="133" text-anchor="middle" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">КВАЛ \u2192 ЗАМЕР</text>';
   el.innerHTML=s;
+  var gap=Math.max(0,goal-val), sub=el.parentNode.querySelector(".sub");
+  if(sub) sub.innerHTML = gap ? ("до "+esc(WORK.conversion.deadline||"цели")+" нужно ещё <b style=\"color:var(--ink)\">"+gap+" п.п.</b>")
+                              : "цель взята";
 }
 function drawLine(){
-  var d=[52,55,53,58,60,59,62,61,64,66,65,67,66,68], W=560,H=190,L=34,R=8,T=12,B=26,lo=40,hi=85;
   var el=document.getElementById("line"); if(!el) return;
+  var d=(WORK.conversion.history||[]).slice(-14);
+  if(d.length<2){ el.innerHTML='<text x="20" y="100" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="13">История появится, когда n8n начнёт её присылать</text>'; return; }
+  var W=560,H=190,L=34,R=8,T=12,B=26,lo=Math.max(0,Math.min.apply(null,d)-12),hi=Math.min(100,Math.max.apply(null,d.concat([WORK.conversion.goal||80]))+6);
   var iw=W-L-R, ih=H-T-B;
-  var X=function(i){ return L+i*(iw/(d.length-1)); }, Y=function(v){ return T+ih-((v-lo)/(hi-lo))*ih; };
+  var X=function(i){ return L+i*(iw/(d.length-1)); }, Y=function(v){ return T+ih-((v-lo)/(hi-lo||1))*ih; };
   var s='<defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#59E7FF" stop-opacity=".30"/>'+
         '<stop offset="100%" stop-color="#59E7FF" stop-opacity="0"/></linearGradient></defs>';
-  [40,60,80].forEach(function(v){
+  var ticks=[lo, Math.round((lo+hi)/2), hi];
+  ticks.forEach(function(v){
     s+='<line x1="'+L+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(v).toFixed(1)+'" stroke="rgba(120,158,205,.12)"/>';
-    s+='<text x="'+(L-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">'+v+'</text>';
+    s+='<text x="'+(L-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">'+Math.round(v)+'</text>';
   });
-  s+='<line x1="'+L+'" y1="'+Y(80).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(80).toFixed(1)+'" stroke="#FFB55C" stroke-width="1.5" stroke-dasharray="5 5" opacity=".75"/>';
-  s+='<text x="'+(W-R)+'" y="'+(Y(80)-7).toFixed(1)+'" text-anchor="end" fill="#FFB55C" font-family="JetBrains Mono, monospace" font-size="10">цель 80</text>';
+  var goal=WORK.conversion.goal||80;
+  if(goal>=lo && goal<=hi){
+    s+='<line x1="'+L+'" y1="'+Y(goal).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(goal).toFixed(1)+'" stroke="#FFB55C" stroke-width="1.5" stroke-dasharray="5 5" opacity=".75"/>';
+    s+='<text x="'+(W-R)+'" y="'+(Y(goal)-7).toFixed(1)+'" text-anchor="end" fill="#FFB55C" font-family="JetBrains Mono, monospace" font-size="10">цель '+goal+'</text>';
+  }
   var p=""; d.forEach(function(v,i){ p+=(i?" L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); });
+  var last=d[d.length-1];
   s+='<path d="'+p+" L"+X(d.length-1).toFixed(1)+" "+(T+ih)+" L"+L+" "+(T+ih)+' Z" fill="url(#ar)"/>';
   s+='<path d="'+p+'" fill="none" stroke="#59E7FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-  s+='<circle cx="'+X(d.length-1).toFixed(1)+'" cy="'+Y(68).toFixed(1)+'" r="4.5" fill="#59E7FF" stroke="#04060A" stroke-width="2"/>';
-  s+='<text x="'+(X(d.length-1)-6).toFixed(1)+'" y="'+(Y(68)-12).toFixed(1)+'" text-anchor="end" fill="#E6EFFA" font-family="JetBrains Mono, monospace" font-size="12">68%</text>';
-  s+='<text x="'+L+'" y="'+(H-6)+'" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">14 дн. назад</text>';
+  s+='<circle cx="'+X(d.length-1).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="4.5" fill="#59E7FF" stroke="#04060A" stroke-width="2"/>';
+  s+='<text x="'+(X(d.length-1)-6).toFixed(1)+'" y="'+(Y(last)-12).toFixed(1)+'" text-anchor="end" fill="#E6EFFA" font-family="JetBrains Mono, monospace" font-size="12">'+last+'%</text>';
+  s+='<text x="'+L+'" y="'+(H-6)+'" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">'+(d.length-1)+' дн. назад</text>';
   s+='<text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" fill="#5F7B9B" font-family="JetBrains Mono, monospace" font-size="10">сегодня</text>';
-  d.forEach(function(v,i){ s+='<circle class="pt" data-v="'+v+'" data-i="'+i+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="11" fill="transparent"/>'; });
+  d.forEach(function(v,i){ s+='<circle class="pt" data-v="'+v+'" data-b="'+(d.length-1-i)+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="11" fill="transparent"/>'; });
   el.innerHTML=s;
-  var tip=null;
-  el.addEventListener("mouseover",function(ev){
-    var t=ev.target; if(!t.classList||!t.classList.contains("pt")) return;
-    if(!tip){ tip=document.createElement("div"); tip.className="tip"; document.body.appendChild(tip); }
-    var back=13-parseInt(t.dataset.i,10);
-    tip.innerHTML='<span class="v">'+t.dataset.v+"%</span> · "+(back===0?"сегодня":back===1?"вчера":back+" дн. назад");
-    var r=t.getBoundingClientRect(); tip.style.left=(r.left+r.width/2)+"px"; tip.style.top=r.top+"px"; tip.hidden=false;
-  });
-  el.addEventListener("mouseleave",function(){ if(tip) tip.hidden=true; });
 }
+var lineTip=null;
+document.addEventListener("mouseover",function(ev){
+  var t=ev.target;
+  if(!t.classList||!t.classList.contains("pt")) return;
+  if(!lineTip){ lineTip=document.createElement("div"); lineTip.className="tip"; document.body.appendChild(lineTip); }
+  var back=+t.getAttribute("data-b");
+  lineTip.innerHTML='<span class="v">'+t.getAttribute("data-v")+"%</span> · "+(back===0?"сегодня":back===1?"вчера":back+" дн. назад");
+  var r=t.getBoundingClientRect(); lineTip.style.left=(r.left+r.width/2)+"px"; lineTip.style.top=r.top+"px"; lineTip.hidden=false;
+});
+document.addEventListener("mouseout",function(ev){
+  if(lineTip && ev.target.classList && ev.target.classList.contains("pt")) lineTip.hidden=true;
+});
 function drawFunnel(){
   var el=document.getElementById("funnel"); if(!el) return;
-  var f=[["Квалифицированные лиды",84,"#2499BA"],["Назначенные замеры",57,"#8E6BE8"],["Заключённые договоры",19,"#2E9E73"]], h="";
-  f.forEach(function(s,i){
-    h+='<div class="step"><span class="lab">'+s[0]+'</span><span class="v">'+s[1]+'</span>'+
-       '<span class="bar"><i style="width:'+(s[1]/f[0][1]*100).toFixed(1)+'%; background:'+s[2]+'"></i></span></div>';
-    if(i<f.length-1) h+='<div class="drop">'+Math.round(f[i+1][1]/s[1]*100)+'% переходит дальше</div>';
+  var f=WORK.funnel||{};
+  var rows=[["Квалифицированные лиды",f.quals||0,"#2499BA"],["Назначенные замеры",f.measures||0,"#8E6BE8"],["Заключённые договоры",f.contracts||0,"#2E9E73"]];
+  var top=rows[0][1]||1, h="";
+  rows.forEach(function(r,i){
+    h+='<div class="step"><span class="lab">'+r[0]+'</span><span class="v">'+r[1]+'</span>'+
+       '<span class="bar"><i style="width:'+Math.min(100,r[1]/top*100).toFixed(1)+'%; background:'+r[2]+'"></i></span></div>';
+    if(i<rows.length-1) h+='<div class="drop">'+(r[1]?Math.round(rows[i+1][1]/r[1]*100):0)+'% переходит дальше</div>';
   });
   el.innerHTML=h;
 }
 function drawMgrs(){
   var el=document.getElementById("mgrs"); if(!el) return;
-  var m=[["А. С.","тихие стены",92,"#2499BA"],["И. М.","ремонты",74,"#8E6BE8"],["Д. В.","ремонты",61,"#C07E2B"],["Р. К.","ремонты",38,"#C4557F"]];
-  el.innerHTML=m.map(function(x){
-    return '<div class="mgr"><span class="ini">'+x[0]+'</span><span><span class="nm">'+x[1]+
-      '</span><span class="track"><i style="width:'+x[2]+'%; background:'+x[3]+'"></i></span></span><span class="pc">'+x[2]+'%</span></div>';
+  var m=WORK.managers||[];
+  if(!m.length){ el.innerHTML='<p class="empty">Список появится после подключения источника.</p>'; return; }
+  el.innerHTML=m.map(function(x,i){
+    return '<div class="mgr"><span class="ini">'+esc(x.name)+'</span><span><span class="nm">'+esc(x.area||"")+
+      '</span><span class="track"><i style="width:'+Math.max(0,Math.min(100,x.pct||0))+'%; background:'+PAL[i%5]+'"></i></span></span>'+
+      '<span class="pc">'+(x.pct||0)+'%</span></div>';
   }).join("");
+  var lag=m.filter(function(x){ return (x.pct||0)<50; }).length;
+  var tg=el.parentNode.querySelector(".tag");
+  if(tg){ tg.textContent=lag?(lag+" отстаёт"):"все в темпе"; tg.className="tag "+(lag?"bad":"ok"); }
 }
 function drawTherm(){
   var el=document.getElementById("h-therm"); if(!el) return;
-  var n=24, on=Math.round(.62*n), h="";
+  var pct=WORK.plan.target?Math.max(0,Math.min(100,Math.round(WORK.plan.done/WORK.plan.target*100))):0;
+  var n=24, on=Math.round(pct/100*n), h="";
   for(var i=0;i<n;i++) h+='<span class="'+(i<on?"on":(i===n-1?"goal":""))+'"></span>';
   el.innerHTML=h;
+  $("#h-planPct").textContent=pct+"%";
+  $("#h-planSub").textContent=fmtM(WORK.plan.done)+" из "+fmtM(WORK.plan.target);
+}
+function drawProblems(){
+  var list=WORK.problems||[];
+  var full=list.map(function(p){
+    return '<div class="alert"><span class="b'+(p.level==="warn"?" w":"")+'"></span><span>'+
+      (p.id?"№"+esc(p.id)+" · ":"")+esc(p.title||"")+(p.note?'<br><span class="sub" style="margin:0">'+esc(p.note)+'</span>':"")+
+      '</span><span class="t">'+esc(p.age||"")+'</span></div>';
+  }).join("");
+  var short=list.slice(0,3).map(function(p){
+    return '<div class="alert"><span class="b'+(p.level==="warn"?" w":"")+'"></span><span>'+esc(p.title||"")+'</span><span class="t">'+esc(p.age||"")+'</span></div>';
+  }).join("");
+  var e1=$("#w-problems"), e2=$("#h-problems");
+  if(e1) e1.innerHTML=full||'<p class="empty">Ничего не горит.</p>';
+  if(e2) e2.innerHTML=short||'<p class="empty">Ничего не горит.</p>';
+  var n1=$("#w-probN"), n2=$("#h-probN");
+  if(n1) n1.textContent=list.length; if(n2) n2.textContent=list.length;
+}
+function drawNotice(){
+  var box=$("#workNotice"); if(!box) return;
+  var badge=WORK.demo?"демо":"AmoCRM";
+  ["#h-convSrc","#h-planSrc"].forEach(function(id){ var e=$(id); if(e){ e.textContent=badge;
+    e.style.color=WORK.demo?"var(--amber)":"#7FD9B4"; e.style.borderColor=WORK.demo?"rgba(255,181,92,.4)":"rgba(46,158,115,.4)"; } });
+  if(WORK.demo){
+    box.innerHTML='<div class="notice"><b>!</b><span>Источник данных не подключён, поэтому рабочие цифры на этом экране демонстрационные. '+
+      'Укажите адрес вебхука n8n внизу страницы, и они заменятся вашими.</span></div>';
+  } else {
+    var t=WORK.updated?new Date(WORK.updated):null;
+    var when=t?("обновлено "+("0"+t.getHours()).slice(-2)+":"+("0"+t.getMinutes()).slice(-2)):"обновлено только что";
+    box.innerHTML='<div class="notice" style="border-color:rgba(46,158,115,.35); background:rgba(46,158,115,.07)">'+
+      '<b style="color:#7FD9B4">\u2713</b><span>Цифры получены из AmoCRM через n8n, '+when+'.</span></div>';
+  }
+}
+function drawWork(){ drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTherm(); drawProblems(); drawNotice(); }
+
+/* ---------------- источник данных ---------------- */
+function srcMsg(t,bad){ var e=$("#srcMsg"); if(e){ e.textContent=t; e.style.color=bad?"#F08098":"var(--ink3)"; } }
+function loadWork(){
+  if(!SRC.url){ $("#srcState").textContent="не задан"; return; }
+  $("#srcState").textContent="запрос…";
+  var opt={headers:{}};
+  if(SRC.key) opt.headers["X-Shumm-Key"]=SRC.key;
+  fetch(SRC.url,opt).then(function(r){
+    if(!r.ok) throw new Error("http "+r.status);
+    return r.json();
+  }).then(function(d){
+    if(d.plan) WORK.plan={target:d.plan.target||WORK.plan.target, done:d.plan.done||0};
+    if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
+      deadline:d.conversion.deadline||WORK.conversion.deadline,
+      history:(d.conversion.history||[]).map(function(h){ return typeof h==="number"?h:h.v; })};
+    if(d.funnel) WORK.funnel=d.funnel;
+    if(d.managers) WORK.managers=d.managers;
+    if(d.problems) WORK.problems=d.problems;
+    WORK.updated=d.updated||new Date().toISOString();
+    WORK.demo=false;
+    drawWork();
+    $("#srcState").textContent="подключено";
+    srcMsg("Данные получены.");
+  }).catch(function(e){
+    $("#srcState").textContent="нет связи";
+    var inClaude=location.hostname.indexOf("claude")>-1;
+    srcMsg(inClaude
+      ? "Внутри Claude внешние запросы заблокированы платформой. Адрес сохранён и сработает в установленной версии."
+      : "Не удалось получить данные: "+e.message+". Проверьте адрес вебхука и что воркфлоу включён.", !inClaude);
+  });
+}
+if($("#srcSave")){
+  $("#srcUrl").value=SRC.url; $("#srcKey").value=SRC.key;
+  $("#srcSave").addEventListener("click",function(){
+    SRC.url=$("#srcUrl").value.trim(); SRC.key=$("#srcKey").value.trim();
+    try{ localStorage.setItem("shumm-src",JSON.stringify(SRC)); }catch(e){}
+    loadWork();
+  });
+  $("#srcClear").addEventListener("click",function(){
+    SRC={url:"",key:""}; $("#srcUrl").value=""; $("#srcKey").value="";
+    try{ localStorage.removeItem("shumm-src"); }catch(e){}
+    WORK.demo=true; drawWork(); $("#srcState").textContent="не задан"; srcMsg("Источник сброшен, показаны демо-цифры.");
+  });
 }
 
 /* ---------------- agents via sample ---------------- */
@@ -873,7 +997,8 @@ function clock(){
 }
 clock(); setInterval(clock,20000);
 
-drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTherm();
+drawWork();
 syncType(); boot();
+if(SRC.url) loadWork();
 })();
 </script>

@@ -1,0 +1,110 @@
+{
+  "name": "Shumm · работа",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "shumm-work",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Запрос от Shumm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-320, 0],
+      "webhookId": "shumm-work"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "subdomain", "value": "ЗАМЕНИТЕ", "type": "string" },
+            { "id": "a2", "name": "planTarget", "value": 17000000, "type": "number" },
+            { "id": "a3", "name": "convGoal", "value": 80, "type": "number" },
+            { "id": "a4", "name": "convDeadline", "value": "2026-11-18", "type": "string" },
+            { "id": "a5", "name": "qualStatusId", "value": 0, "type": "number" },
+            { "id": "a6", "name": "measureStatusId", "value": 0, "type": "number" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cfg-1",
+      "name": "Настройки",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-100, 0],
+      "notes": "Подставьте поддомен и идентификаторы статусов из /api/v4/leads/pipelines"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.subdomain }}.amocrm.ru/api/v4/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "250" },
+            { "name": "with", "value": "contacts" },
+            { "name": "filter[created_at][from]", "value": "={{ Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000) }}" }
+          ]
+        },
+        "options": { "pagination": { "pagination": { "paginationMode": "off" } } }
+      },
+      "id": "amo-1",
+      "name": "Сделки за месяц",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [140, -110],
+      "credentials": { "httpHeaderAuth": { "id": "amo-token", "name": "amo-token" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Настройки').item.json.subdomain }}.amocrm.ru/api/v4/users",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "amo-2",
+      "name": "Менеджеры",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [140, 110],
+      "credentials": { "httpHeaderAuth": { "id": "amo-token", "name": "amo-token" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Сводит ответы AmoCRM в контракт, который ждёт Shumm.\n// Идентификаторы статусов берутся из узла «Настройки».\nconst cfg = $('Настройки').first().json;\nconst leadsRaw = $('Сделки за месяц').all();\nconst usersRaw = $('Менеджеры').all();\n\nconst leads = leadsRaw.flatMap(i => i.json?._embedded?.leads ?? []);\nconst users = usersRaw.flatMap(i => i.json?._embedded?.users ?? []);\n\nconst WON = 142; // системный статус «успешно реализовано»\n\nconst quals = leads.filter(l => l.status_id === cfg.qualStatusId).length || leads.length;\nconst measures = leads.filter(l => l.status_id === cfg.measureStatusId).length;\nconst contracts = leads.filter(l => l.status_id === WON).length;\nconst done = leads.filter(l => l.status_id === WON).reduce((s, l) => s + (l.price || 0), 0);\n\nconst byUser = {};\nfor (const l of leads) {\n  const id = l.responsible_user_id;\n  byUser[id] = byUser[id] || { total: 0, won: 0 };\n  byUser[id].total++;\n  if (l.status_id === WON) byUser[id].won++;\n}\nconst initials = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase() + '.').join(' ');\nconst managers = users.map(u => {\n  const s = byUser[u.id] || { total: 0, won: 0 };\n  return { name: initials(u.name), area: '', pct: s.total ? Math.round(s.won / s.total * 100) : 0 };\n}).filter(m => m.name).sort((a, b) => b.pct - a.pct);\n\nconst HOUR = 3600;\nconst now = Math.floor(Date.now() / 1000);\nconst problems = leads\n  .filter(l => l.status_id !== WON && now - (l.updated_at || l.created_at || now) > 48 * HOUR)\n  .sort((a, b) => (a.updated_at || 0) - (b.updated_at || 0))\n  .slice(0, 5)\n  .map(l => ({\n    id: String(l.id),\n    title: l.name || ('Сделка №' + l.id),\n    note: 'без касания',\n    age: Math.round((now - (l.updated_at || now)) / HOUR) + ' ч',\n    level: 'bad'\n  }));\n\nreturn [{\n  json: {\n    updated: new Date().toISOString(),\n    plan: { target: cfg.planTarget, done },\n    conversion: {\n      current: quals ? Math.round(measures / quals * 100) : 0,\n      goal: cfg.convGoal,\n      deadline: cfg.convDeadline,\n      history: []\n    },\n    funnel: { quals, measures, contracts },\n    managers,\n    problems\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Сборка ответа",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0]
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "resp-1",
+      "name": "Ответ",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [640, 0]
+    }
+  ],
+  "connections": {
+    "Запрос от Shumm": { "main": [[{ "node": "Настройки", "type": "main", "index": 0 }]] },
+    "Настройки": {
+      "main": [[
+        { "node": "Сделки за месяц", "type": "main", "index": 0 },
+        { "node": "Менеджеры", "type": "main", "index": 0 }
+      ]]
+    },
+    "Сделки за месяц": { "main": [[{ "node": "Сборка ответа", "type": "main", "index": 0 }]] },
+    "Менеджеры": { "main": [[{ "node": "Сборка ответа", "type": "main", "index": 0 }]] },
+    "Сборка ответа": { "main": [[{ "node": "Ответ", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
