@@ -900,34 +900,59 @@ function drawWork(){ drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTher
 
 /* ---------------- источник данных ---------------- */
 function srcMsg(t,bad){ var e=$("#srcMsg"); if(e){ e.textContent=t; e.style.color=bad?"#F08098":"var(--ink3)"; } }
+function srcAddr(cb){
+  var u=SRC.url, q=[];
+  if(SRC.key) q.push("key="+encodeURIComponent(SRC.key));
+  if(cb) q.push("callback="+cb);
+  if(!q.length) return u;
+  return u+(u.indexOf("?")>-1?"&":"?")+q.join("&");
+}
+/* Обход запрета на межсайтовые запросы: ответ приходит обёрнутым в вызов функции. */
+function srcJsonp(){
+  return new Promise(function(res,rej){
+    var cb="shummCb"+Date.now().toString(36), sc=document.createElement("script"), t;
+    function done(){ clearTimeout(t); try{ delete window[cb]; }catch(e){ window[cb]=undefined; }
+      if(sc.parentNode) sc.parentNode.removeChild(sc); }
+    t=setTimeout(function(){ done(); rej(new Error("источник не ответил")); },15000);
+    window[cb]=function(d){ done(); res(d); };
+    sc.onerror=function(){ done(); rej(new Error("источник недоступен")); };
+    sc.src=srcAddr(cb);
+    document.head.appendChild(sc);
+  });
+}
+function applyWork(d){
+  if(!d || d.error) throw new Error(d && d.error ? d.error : "пустой ответ");
+  if(d.plan) WORK.plan={target:d.plan.target||WORK.plan.target, done:d.plan.done||0};
+  if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
+    deadline:d.conversion.deadline||WORK.conversion.deadline,
+    history:(d.conversion.history||[]).map(function(h){ return typeof h==="number"?h:h.v; })};
+  if(d.funnel) WORK.funnel=d.funnel;
+  if(d.managers) WORK.managers=d.managers;
+  if(d.problems) WORK.problems=d.problems;
+  WORK.updated=d.updated||new Date().toISOString();
+  WORK.demo=false;
+  drawWork();
+  $("#srcState").textContent="подключено";
+  srcMsg((d.warnings&&d.warnings.length)
+    ? ("Данные получены, но есть замечание: "+d.warnings.join("; ")+". Пришлите мне ответ источника, я поправлю.")
+    : "Данные получены.");
+}
 function loadWork(){
   if(!SRC.url){ $("#srcState").textContent="не задан"; return; }
   $("#srcState").textContent="запрос…";
   var opt={headers:{}};
   if(SRC.key) opt.headers["X-Shumm-Key"]=SRC.key;
-  fetch(SRC.url,opt).then(function(r){
-    if(!r.ok) throw new Error("http "+r.status);
-    return r.json();
-  }).then(function(d){
-    if(d.plan) WORK.plan={target:d.plan.target||WORK.plan.target, done:d.plan.done||0};
-    if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
-      deadline:d.conversion.deadline||WORK.conversion.deadline,
-      history:(d.conversion.history||[]).map(function(h){ return typeof h==="number"?h:h.v; })};
-    if(d.funnel) WORK.funnel=d.funnel;
-    if(d.managers) WORK.managers=d.managers;
-    if(d.problems) WORK.problems=d.problems;
-    WORK.updated=d.updated||new Date().toISOString();
-    WORK.demo=false;
-    drawWork();
-    $("#srcState").textContent="подключено";
-    srcMsg("Данные получены.");
-  }).catch(function(e){
-    $("#srcState").textContent="нет связи";
-    var inClaude=location.hostname.indexOf("claude")>-1;
-    srcMsg(inClaude
-      ? "Внутри Claude внешние запросы заблокированы платформой. Адрес сохранён и сработает в установленной версии."
-      : "Не удалось получить данные: "+e.message+". Проверьте адрес вебхука и что воркфлоу включён.", !inClaude);
-  });
+  fetch(srcAddr(),opt)
+    .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+    .then(applyWork)
+    .catch(function(){ return srcJsonp().then(applyWork); })
+    .catch(function(e){
+      $("#srcState").textContent="нет связи";
+      var inClaude=location.hostname.indexOf("claude")>-1;
+      srcMsg(inClaude
+        ? "Внутри Claude внешние запросы запрещены площадкой. Адрес сохранён и заработает в установленной версии."
+        : "Не удалось получить данные: "+e.message+". Проверьте адрес и что доступ открыт всем.", !inClaude);
+    });
 }
 if($("#srcSave")){
   $("#srcUrl").value=SRC.url; $("#srcKey").value=SRC.key;
