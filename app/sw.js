@@ -1,6 +1,7 @@
 /* Shumm service worker: приложение открывается из кеша даже без сети. */
-var CACHE = "shumm-v1";
-var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", "./icon-maskable.svg"];
+var CACHE = "shumm-v2";
+var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg",
+             "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));

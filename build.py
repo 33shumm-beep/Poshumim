@@ -21,7 +21,8 @@ HEAD = """<!doctype html>
 <meta name="description" content="Личное рабочее пространство: работа, финансы, развитие и ежедневные дела">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="icon" href="./icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
@@ -52,7 +53,8 @@ def main() -> None:
     DIST.mkdir(exist_ok=True)
     (DIST / "index.html").write_text(HEAD + head_part + "\n</head>\n<body>\n" + body_part + TAIL, encoding="utf-8")
 
-    for name in ("manifest.webmanifest", "sw.js", "icon.svg", "icon-maskable.svg"):
+    for name in ("manifest.webmanifest", "sw.js", "icon.svg", "icon-maskable.svg",
+                 "icon-192.png", "icon-512.png", "icon-maskable-512.png"):
         shutil.copy(APP / name, DIST / name)
 
     print("dist/index.html собран")
