@@ -913,15 +913,16 @@ function srcJsonp(){
     var cb="shummCb"+Date.now().toString(36), sc=document.createElement("script"), t;
     function done(){ clearTimeout(t); try{ delete window[cb]; }catch(e){ window[cb]=undefined; }
       if(sc.parentNode) sc.parentNode.removeChild(sc); }
-    t=setTimeout(function(){ done(); rej(new Error("источник не ответил")); },15000);
+    t=setTimeout(function(){ done(); rej(new Error("источник не ответил за минуту")); },60000);
     window[cb]=function(d){ done(); res(d); };
     sc.onerror=function(){ done(); rej(new Error("источник недоступен")); };
     sc.src=srcAddr(cb);
     document.head.appendChild(sc);
   });
 }
-function applyWork(d){
+function applyWork(d, изКеша){
   if(!d || d.error) throw new Error(d && d.error ? d.error : "пустой ответ");
+  if(!изКеша){ try{ localStorage.setItem("shumm-work",JSON.stringify(d)); }catch(e){} }
   if(d.plan) WORK.plan={target:d.plan.target||WORK.plan.target, done:d.plan.done||0};
   if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
     deadline:d.conversion.deadline||WORK.conversion.deadline,
@@ -932,14 +933,22 @@ function applyWork(d){
   WORK.updated=d.updated||new Date().toISOString();
   WORK.demo=false;
   drawWork();
-  $("#srcState").textContent="подключено";
+  $("#srcState").textContent=изКеша?"из памяти":"подключено";
   srcMsg((d.warnings&&d.warnings.length)
     ? ("Данные получены, но есть замечание: "+d.warnings.join("; ")+". Пришлите мне ответ источника, я поправлю.")
     : "Данные получены.");
 }
+function загрузитьСохранённое(){
+  if(!SRC.url) return;
+  try{
+    var сырое=localStorage.getItem("shumm-work");
+    if(сырое) applyWork(JSON.parse(сырое), true);
+  }catch(e){}
+}
 function loadWork(){
   if(!SRC.url){ $("#srcState").textContent="не задан"; return; }
   $("#srcState").textContent="запрос…";
+  srcMsg("Скрипт опрашивает AmoCRM, это занимает до минуты.");
   var opt={headers:{}};
   if(SRC.key) opt.headers["X-Shumm-Key"]=SRC.key;
   fetch(srcAddr(),opt)
@@ -949,9 +958,12 @@ function loadWork(){
     .catch(function(e){
       $("#srcState").textContent="нет связи";
       var inClaude=location.hostname.indexOf("claude")>-1;
+      var естьСохранённое=false;
+      try{ естьСохранённое=!!localStorage.getItem("shumm-work"); }catch(err){}
       srcMsg(inClaude
         ? "Внутри Claude внешние запросы запрещены площадкой. Адрес сохранён и заработает в установленной версии."
-        : "Не удалось получить данные: "+e.message+". Проверьте адрес и что доступ открыт всем.", !inClaude);
+        : ("Не удалось получить данные: "+e.message+"."+
+           (естьСохранённое?" Показаны последние полученные цифры.":" Проверьте адрес и что доступ открыт всем.")), !inClaude);
     });
 }
 if($("#srcSave")){
@@ -1024,6 +1036,7 @@ clock(); setInterval(clock,20000);
 
 drawWork();
 syncType(); boot();
+загрузитьСохранённое();
 if(SRC.url) loadWork();
 })();
 </script>
