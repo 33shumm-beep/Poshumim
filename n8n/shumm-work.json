@@ -8,103 +8,206 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "wh-1",
+      "id": "wh1",
       "name": "Запрос от Shumm",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-320, 0],
+      "position": [
+        -420,
+        0
+      ],
       "webhookId": "shumm-work"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "a1", "name": "subdomain", "value": "ЗАМЕНИТЕ", "type": "string" },
-            { "id": "a2", "name": "planTarget", "value": 17000000, "type": "number" },
-            { "id": "a3", "name": "convGoal", "value": 80, "type": "number" },
-            { "id": "a4", "name": "convDeadline", "value": "2026-11-18", "type": "string" },
-            { "id": "a5", "name": "qualStatusId", "value": 0, "type": "number" },
-            { "id": "a6", "name": "measureStatusId", "value": 0, "type": "number" }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Единственное место с настройками. Поддомен уже подставлен.\nconst now = new Date();\nconst monthFrom = Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);\nreturn [{ json: {\n  subdomain: 'macridin',\n  planTarget: 17000000,\n  convGoal: 80,\n  convDeadline: '18 ноября',\n  monthFrom\n} }];"
       },
-      "id": "cfg-1",
+      "id": "cfg1",
       "name": "Настройки",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [-100, 0],
-      "notes": "Подставьте поддомен и идентификаторы статусов из /api/v4/leads/pipelines"
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Здесь меняется план месяца и цель по конверсии"
     },
     {
       "parameters": {
-        "url": "=https://{{ $json.subdomain }}.amocrm.ru/api/v4/leads",
+        "url": "=https://{{ $json.subdomain }}.amocrm.ru/api/v4/leads/pipelines",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "h1",
+      "name": "Воронки",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "amo-token",
+          "name": "amo-token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Настройки').first().json.subdomain }}.amocrm.ru/api/v4/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "limit", "value": "250" },
-            { "name": "with", "value": "contacts" },
-            { "name": "filter[created_at][from]", "value": "={{ Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000) }}" }
+            {
+              "name": "limit",
+              "value": "250"
+            },
+            {
+              "name": "filter[created_at][from]",
+              "value": "={{ $('Настройки').first().json.monthFrom }}"
+            }
           ]
-        },
-        "options": { "pagination": { "pagination": { "paginationMode": "off" } } }
+        }
       },
-      "id": "amo-1",
+      "id": "h2",
       "name": "Сделки за месяц",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [140, -110],
-      "credentials": { "httpHeaderAuth": { "id": "amo-token", "name": "amo-token" } },
-      "onError": "continueRegularOutput"
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "amo-token",
+          "name": "amo-token"
+        }
+      }
     },
     {
       "parameters": {
-        "url": "=https://{{ $('Настройки').item.json.subdomain }}.amocrm.ru/api/v4/users",
+        "url": "=https://{{ $('Настройки').first().json.subdomain }}.amocrm.ru/api/v4/users",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "amo-2",
+      "id": "h3",
       "name": "Менеджеры",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [140, 110],
-      "credentials": { "httpHeaderAuth": { "id": "amo-token", "name": "amo-token" } },
-      "onError": "continueRegularOutput"
+      "position": [
+        460,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "amo-token",
+          "name": "amo-token"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Сводит ответы AmoCRM в контракт, который ждёт Shumm.\n// Идентификаторы статусов берутся из узла «Настройки».\nconst cfg = $('Настройки').first().json;\nconst leadsRaw = $('Сделки за месяц').all();\nconst usersRaw = $('Менеджеры').all();\n\nconst leads = leadsRaw.flatMap(i => i.json?._embedded?.leads ?? []);\nconst users = usersRaw.flatMap(i => i.json?._embedded?.users ?? []);\n\nconst WON = 142; // системный статус «успешно реализовано»\n\nconst quals = leads.filter(l => l.status_id === cfg.qualStatusId).length || leads.length;\nconst measures = leads.filter(l => l.status_id === cfg.measureStatusId).length;\nconst contracts = leads.filter(l => l.status_id === WON).length;\nconst done = leads.filter(l => l.status_id === WON).reduce((s, l) => s + (l.price || 0), 0);\n\nconst byUser = {};\nfor (const l of leads) {\n  const id = l.responsible_user_id;\n  byUser[id] = byUser[id] || { total: 0, won: 0 };\n  byUser[id].total++;\n  if (l.status_id === WON) byUser[id].won++;\n}\nconst initials = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase() + '.').join(' ');\nconst managers = users.map(u => {\n  const s = byUser[u.id] || { total: 0, won: 0 };\n  return { name: initials(u.name), area: '', pct: s.total ? Math.round(s.won / s.total * 100) : 0 };\n}).filter(m => m.name).sort((a, b) => b.pct - a.pct);\n\nconst HOUR = 3600;\nconst now = Math.floor(Date.now() / 1000);\nconst problems = leads\n  .filter(l => l.status_id !== WON && now - (l.updated_at || l.created_at || now) > 48 * HOUR)\n  .sort((a, b) => (a.updated_at || 0) - (b.updated_at || 0))\n  .slice(0, 5)\n  .map(l => ({\n    id: String(l.id),\n    title: l.name || ('Сделка №' + l.id),\n    note: 'без касания',\n    age: Math.round((now - (l.updated_at || now)) / HOUR) + ' ч',\n    level: 'bad'\n  }));\n\nreturn [{\n  json: {\n    updated: new Date().toISOString(),\n    plan: { target: cfg.planTarget, done },\n    conversion: {\n      current: quals ? Math.round(measures / quals * 100) : 0,\n      goal: cfg.convGoal,\n      deadline: cfg.convDeadline,\n      history: []\n    },\n    funnel: { quals, measures, contracts },\n    managers,\n    problems\n  }\n}];"
+        "jsCode": "// Собирает ответ для Shumm и заодно отдаёт справочник воронок.\nconst cfg = $('Настройки').first().json;\nconst pipes = $('Воронки').all().flatMap(i => i.json?._embedded?.pipelines ?? []);\nconst leads = $('Сделки за месяц').all().flatMap(i => i.json?._embedded?.leads ?? []);\nconst users = $('Менеджеры').all().flatMap(i => i.json?._embedded?.users ?? []);\n\nconst WON = 142, LOST = 143;\n\n// Статусы по всем воронкам: id -> {sort, pipeline_id, name}\nconst stage = {};\nconst ref = [];\nfor (const p of pipes) {\n  const sts = p._embedded?.statuses ?? [];\n  ref.push({ pipeline: p.name, id: p.id, statuses: sts.map(s => ({ id: s.id, name: s.name, sort: s.sort })) });\n  for (const s of sts) stage[s.id] = { sort: s.sort, pipeline: p.id, name: s.name };\n}\n\n// Ищем этапы по названию, без ручных идентификаторов.\nconst find = (re) => Object.entries(stage).filter(([, s]) => re.test(s.name)).map(([id, s]) => ({ id: +id, ...s }));\nconst qualSt = find(/квал/i);\nconst measSt = find(/замер/i);\nconst warnings = [];\nif (!qualSt.length) warnings.push('не найден этап со словом «квал»');\nif (!measSt.length) warnings.push('не найден этап со словом «замер»');\n\nconst minSort = (list, pipeline) => {\n  const own = list.filter(s => s.pipeline === pipeline);\n  return own.length ? Math.min(...own.map(s => s.sort)) : null;\n};\n// Сделка считается дошедшей до этапа, если её статус не раньше по порядку или уже выигран.\nconst reached = (lead, list) => {\n  if (lead.status_id === WON) return true;\n  if (lead.status_id === LOST) return false;\n  const st = stage[lead.status_id];\n  if (!st) return false;\n  const need = minSort(list, st.pipeline);\n  return need === null ? false : st.sort >= need;\n};\n\nconst alive = leads.filter(l => l.status_id !== LOST);\nconst quals = qualSt.length ? alive.filter(l => reached(l, qualSt)).length : alive.length;\nconst measures = measSt.length ? alive.filter(l => reached(l, measSt)).length : 0;\nconst contracts = leads.filter(l => l.status_id === WON).length;\nconst done = leads.filter(l => l.status_id === WON).reduce((s, l) => s + (l.price || 0), 0);\n\nconst byUser = {};\nfor (const l of alive) {\n  const id = l.responsible_user_id;\n  byUser[id] = byUser[id] || { total: 0, won: 0 };\n  byUser[id].total++;\n  if (l.status_id === WON) byUser[id].won++;\n}\nconst initials = (n = '') => n.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase() + '.').join(' ');\nconst managers = users\n  .filter(u => byUser[u.id])\n  .map(u => ({ name: initials(u.name), area: '', pct: Math.round(byUser[u.id].won / byUser[u.id].total * 100) }))\n  .sort((a, b) => b.pct - a.pct);\n\nconst HOUR = 3600, nowS = Math.floor(Date.now() / 1000);\nconst problems = alive\n  .filter(l => l.status_id !== WON && nowS - (l.updated_at || l.created_at || nowS) > 48 * HOUR)\n  .sort((a, b) => (a.updated_at || 0) - (b.updated_at || 0))\n  .slice(0, 5)\n  .map(l => ({\n    id: String(l.id),\n    title: l.name || ('Сделка №' + l.id),\n    note: 'без касания, ' + (stage[l.status_id]?.name || 'этап неизвестен'),\n    age: Math.round((nowS - (l.updated_at || nowS)) / HOUR) + ' ч',\n    level: 'bad'\n  }));\n\nreturn [{ json: {\n  updated: new Date().toISOString(),\n  plan: { target: cfg.planTarget, done },\n  conversion: {\n    current: quals ? Math.round(measures / quals * 100) : 0,\n    goal: cfg.convGoal,\n    deadline: cfg.convDeadline,\n    history: []\n  },\n  funnel: { quals, measures, contracts },\n  managers,\n  problems,\n  warnings,\n  _ref: ref\n} }];"
       },
-      "id": "code-1",
+      "id": "c1",
       "name": "Сборка ответа",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 0]
+      "position": [
+        680,
+        0
+      ]
     },
     {
-      "parameters": { "options": {} },
-      "id": "resp-1",
+      "parameters": {
+        "options": {}
+      },
+      "id": "r1",
       "name": "Ответ",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [640, 0]
+      "position": [
+        900,
+        0
+      ]
     }
   ],
   "connections": {
-    "Запрос от Shumm": { "main": [[{ "node": "Настройки", "type": "main", "index": 0 }]] },
-    "Настройки": {
-      "main": [[
-        { "node": "Сделки за месяц", "type": "main", "index": 0 },
-        { "node": "Менеджеры", "type": "main", "index": 0 }
-      ]]
+    "Запрос от Shumm": {
+      "main": [
+        [
+          {
+            "node": "Настройки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Сделки за месяц": { "main": [[{ "node": "Сборка ответа", "type": "main", "index": 0 }]] },
-    "Менеджеры": { "main": [[{ "node": "Сборка ответа", "type": "main", "index": 0 }]] },
-    "Сборка ответа": { "main": [[{ "node": "Ответ", "type": "main", "index": 0 }]] }
+    "Настройки": {
+      "main": [
+        [
+          {
+            "node": "Воронки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Воронки": {
+      "main": [
+        [
+          {
+            "node": "Сделки за месяц",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сделки за месяц": {
+      "main": [
+        [
+          {
+            "node": "Менеджеры",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Менеджеры": {
+      "main": [
+        [
+          {
+            "node": "Сборка ответа",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сборка ответа": {
+      "main": [
+        [
+          {
+            "node": "Ответ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {}
 }
