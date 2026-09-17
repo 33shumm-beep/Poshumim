@@ -36,6 +36,26 @@ var НАСТРОЙКИ = {
 
 var ВЫИГРАНА = 142, ПРОИГРАНА = 143;
 
+/**
+ * Рабочие воронки и опорные этапы. Номера взяты из вашего аккаунта,
+ * поэтому считаем точно, а не по совпадению слов в названии.
+ */
+var ВОРОНКИ = {
+  5466436: {  // Основная воронка
+    имя: 'Основная воронка',
+    квал: 55021342,      // Квалифицированна
+    замер: 48427108,     // Замер согласован
+    неЗамер: []
+  },
+  10764258: { // Тихие стены
+    имя: 'Тихие стены',
+    квал: 84766366,      // квалифицирована
+    замер: 87672278,     // замер назначен
+    неЗамер: [84766370]  // «Отложенный спрос» стоит после замера, но замера там не было
+  }
+};
+var ВОРОНКА_ОТЛОЖЕННЫХ = 10520622;
+
 /* ====================== адрес для приложения ====================== */
 
 function doGet(e) {
@@ -85,57 +105,73 @@ function запросAmo_(путь, параметры) {
   return JSON.parse(ответ.getContentText() || '{}');
 }
 
-function собратьЦифры() {
+/** Забирает сделки страницами, чтобы ничего не потерялось при большом объёме. */
+function сделкиЗаМесяц_() {
   var начало = new Date();
   начало = Math.floor(new Date(начало.getFullYear(), начало.getMonth(), 1).getTime() / 1000);
+  var всё = [], страница = 1;
+  while (страница <= 12) {
+    var ответ = запросAmo_('leads', { limit: 250, page: страница, 'filter[created_at][from]': начало });
+    var порция = ((ответ || {})._embedded || {}).leads || [];
+    всё = всё.concat(порция);
+    if (порция.length < 250) break;
+    страница++;
+    Utilities.sleep(300); // AmoCRM не любит больше семи обращений в секунду
+  }
+  return всё;
+}
 
+function собратьЦифры() {
   var воронки = (запросAmo_('leads/pipelines')._embedded || {}).pipelines || [];
-  var сделки = (запросAmo_('leads', { limit: 250, 'filter[created_at][from]': начало })._embedded || {}).leads || [];
+  var сделки = сделкиЗаМесяц_();
   var люди = (запросAmo_('users')._embedded || {}).users || [];
 
-  // Все этапы всех воронок: номер этапа -> порядок, воронка, название
+  // Порядок этапов: номер этапа -> {порядок, воронка, название}
   var этапы = {}, справочник = [];
   воронки.forEach(function (в) {
     var список = (в._embedded || {}).statuses || [];
     справочник.push({
-      воронка: в.name,
-      id: в.id,
+      воронка: в.name, id: в.id,
       этапы: список.map(function (с) { return { id: с.id, название: с.name, порядок: с.sort }; })
     });
     список.forEach(function (с) { этапы[с.id] = { порядок: с.sort, воронка: в.id, название: с.name }; });
   });
 
-  // Этапы ищем по названию, чтобы не спрашивать номера у человека.
-  function найти(шаблон) {
-    var найденные = [];
-    for (var id in этапы) if (шаблон.test(этапы[id].название)) найденные.push({ id: +id, порядок: этапы[id].порядок, воронка: этапы[id].воронка });
-    return найденные;
-  }
-  var этапКвал = найти(/квал/i), этапЗамер = найти(/замер/i);
-
   var замечания = [];
-  if (!этапКвал.length) замечания.push('не найден этап со словом «квал»');
-  if (!этапЗамер.length) замечания.push('не найден этап со словом «замер»');
+  for (var код in ВОРОНКИ) {
+    var н = ВОРОНКИ[код];
+    if (!этапы[н.квал]) замечания.push('в воронке «' + н.имя + '» пропал этап квалификации');
+    if (!этапы[н.замер]) замечания.push('в воронке «' + н.имя + '» пропал этап замера');
+  }
 
-  function дошла(сделка, список) {
+  // Сделка дошла до опорного этапа, если её этап не раньше по порядку.
+  function дошла(сделка, опорный, исключения) {
     if (сделка.status_id === ВЫИГРАНА) return true;
     if (сделка.status_id === ПРОИГРАНА) return false;
-    var текущий = этапы[сделка.status_id];
-    if (!текущий) return false;
-    var свои = список.filter(function (э) { return э.воронка === текущий.воронка; });
-    if (!свои.length) return false;
-    var порог = Math.min.apply(null, свои.map(function (э) { return э.порядок; }));
-    return текущий.порядок >= порог;
+    if (исключения && исключения.indexOf(сделка.status_id) > -1) return false;
+    var текущий = этапы[сделка.status_id], цель = этапы[опорный];
+    if (!текущий || !цель) return false;
+    return текущий.порядок >= цель.порядок;
   }
 
-  var живые = сделки.filter(function (с) { return с.status_id !== ПРОИГРАНА; });
-  var квалы = этапКвал.length ? живые.filter(function (с) { return дошла(с, этапКвал); }).length : живые.length;
-  var замеры = этапЗамер.length ? живые.filter(function (с) { return дошла(с, этапЗамер); }).length : 0;
-  var договоры = сделки.filter(function (с) { return с.status_id === ВЫИГРАНА; }).length;
-  var сумма = сделки.reduce(function (и, с) { return с.status_id === ВЫИГРАНА ? и + (с.price || 0) : и; }, 0);
+  var рабочие = сделки.filter(function (с) {
+    return ВОРОНКИ[с.pipeline_id] && с.status_id !== ПРОИГРАНА;
+  });
+  var отложенные = сделки.filter(function (с) {
+    return с.pipeline_id === ВОРОНКА_ОТЛОЖЕННЫХ && с.status_id !== ПРОИГРАНА;
+  }).length;
+
+  var квалы = 0, замеры = 0, договоры = 0, сумма = 0, поВоронкам = {};
+  рабочие.forEach(function (с) {
+    var н = ВОРОНКИ[с.pipeline_id];
+    поВоронкам[н.имя] = поВоронкам[н.имя] || { квалы: 0, замеры: 0, договоры: 0 };
+    if (дошла(с, н.квал, null)) { квалы++; поВоронкам[н.имя].квалы++; }
+    if (дошла(с, н.замер, н.неЗамер)) { замеры++; поВоронкам[н.имя].замеры++; }
+    if (с.status_id === ВЫИГРАНА) { договоры++; сумма += с.price || 0; поВоронкам[н.имя].договоры++; }
+  });
 
   var поЛюдям = {};
-  живые.forEach(function (с) {
+  рабочие.forEach(function (с) {
     var id = с.responsible_user_id;
     поЛюдям[id] = поЛюдям[id] || { всего: 0, выиграно: 0 };
     поЛюдям[id].всего++;
@@ -151,7 +187,7 @@ function собратьЦифры() {
   }).sort(function (a, b) { return b.pct - a.pct; });
 
   var сейчас = Math.floor(Date.now() / 1000), ЧАС = 3600;
-  var проблемы = живые.filter(function (с) {
+  var проблемы = рабочие.filter(function (с) {
     return с.status_id !== ВЫИГРАНА && сейчас - (с.updated_at || с.created_at || сейчас) > 48 * ЧАС;
   }).sort(function (a, b) { return (a.updated_at || 0) - (b.updated_at || 0); }).slice(0, 5).map(function (с) {
     return {
@@ -175,6 +211,8 @@ function собратьЦифры() {
     funnel: { quals: квалы, measures: замеры, contracts: договоры },
     managers: менеджеры,
     problems: проблемы,
+    deferred: отложенные,
+    byPipeline: поВоронкам,
     warnings: замечания,
     _ref: справочник
   };
@@ -304,9 +342,13 @@ function включитьРасписание() {
 /** Проверка связи. Запустите её первой: в журнале появятся ваши цифры. */
 function проверка() {
   var ц = собратьЦифры();
-  Logger.log('Квалы: ' + ц.funnel.quals + ', замеры: ' + ц.funnel.measures + ', договоры: ' + ц.funnel.contracts);
-  Logger.log('Конверсия: ' + ц.conversion.current + '%');
+  Logger.log('ИТОГО за месяц: квалы ' + ц.funnel.quals + ', замеры ' + ц.funnel.measures +
+    ', договоры ' + ц.funnel.contracts + ', сумма ' + ц.plan.done + ' руб');
+  Logger.log('Конверсия квал → замер: ' + ц.conversion.current + '% при цели ' + ц.conversion.goal + '%');
+  Logger.log('По воронкам: ' + JSON.stringify(ц.byPipeline));
+  Logger.log('В отложенном спросе: ' + ц.deferred);
+  Logger.log('Менеджеры: ' + JSON.stringify(ц.managers));
+  Logger.log('Зависших сделок: ' + ц.problems.length);
   if (ц.warnings.length) Logger.log('Внимание: ' + ц.warnings.join('; '));
-  Logger.log('Ваши воронки и этапы: ' + JSON.stringify(ц._ref));
   return ц;
 }
