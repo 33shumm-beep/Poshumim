@@ -296,9 +296,9 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
       </section>
 
       <section class="mod c6">
-        <div class="mh"><h3>Тамбов</h3><span class="sp"></span><span class="demo">ждёт агента</span></div>
-        <div class="wx"><span class="num deg">+12°</span><span class="sub" style="margin:0">Прогноз подключается вместе с погодным ключом.<br>Пока показан пример.</span></div>
-        <ul class="news"><li>Новости города появятся здесь после подключения агента.</li></ul>
+        <div class="mh"><h3>Тамбов</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="wxState">погода…</span></div>
+        <div class="wx"><span class="num deg" id="wxDeg">—</span><span class="sub" style="margin:0" id="wxText">Загружаю прогноз.</span></div>
+        <ul class="news" id="wxDays"></ul>
       </section>
 
       <section class="mod c12">
@@ -1030,6 +1030,67 @@ ask($("#coachBtn"),$("#coachText"),function(){
     "Дай 3 коротких конкретных шага на эту неделю, по одному предложению, без вступления и без общих слов, на русском.";
 });
 
+/* ---------------- погода ---------------- */
+var ПОГОДА_КОДЫ={0:"ясно",1:"малооблачно",2:"переменная облачность",3:"пасмурно",45:"туман",48:"изморозь",
+  51:"морось",53:"морось",55:"морось",61:"небольшой дождь",63:"дождь",65:"сильный дождь",
+  66:"ледяной дождь",67:"ледяной дождь",71:"небольшой снег",73:"снег",75:"сильный снег",77:"снежные зёрна",
+  80:"ливень",81:"ливень",82:"сильный ливень",85:"снегопад",86:"снегопад",95:"гроза",96:"гроза с градом",99:"гроза с градом"};
+
+function советПоПогоде(темп,код,осадки,ветер){
+  if(код>=95) return "Гроза. Выезды на замеры лучше сдвинуть.";
+  if(код>=80 || (код>=61 && код<=67)) return "Дождь. Замеры после 18:00 лучше перенести, дороги встанут.";
+  if(код>=71 && код<=86) return "Снег. Закладывайте лишние двадцать минут на дорогу.";
+  if(осадки>=60) return "Осадки весьма вероятны. Предупредите менеджеров про запас времени.";
+  if(темп<=-15) return "Сильный мороз. Замеры в неотапливаемых объектах лучше не ставить.";
+  if(темп<=0) return "Ниже нуля, возможен гололёд. Выезды планируйте с запасом.";
+  if(темп>=28) return "Жарко. Тяжёлые замеры лучше на утро.";
+  return "Погода выездам не мешает.";
+}
+
+function загрузитьПогоду(){
+  var st=$("#wxState"); if(!st) return;
+  var адрес="https://api.open-meteo.com/v1/forecast?latitude=52.7212&longitude=41.4523"+
+    "&current=temperature_2m,weather_code,wind_speed_10m"+
+    "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max"+
+    "&timezone=Europe%2FMoscow&forecast_days=3";
+  fetch(адрес).then(function(r){
+    if(!r.ok) throw new Error("http "+r.status);
+    return r.json();
+  }).then(function(d){
+    var с=d.current||{}, дн=d.daily||{};
+    var темп=Math.round(с.temperature_2m), код=с.weather_code||0;
+    var ветер=Math.round(с.wind_speed_10m||0);
+    var осадки=(дн.precipitation_probability_max||[])[0]||0;
+    $("#wxDeg").textContent=(темп>0?"+":"")+темп+"°";
+    $("#wxText").innerHTML=esc((ПОГОДА_КОДЫ[код]||"без осадков"))+", ветер "+ветер+" км/ч.<br>"+
+      esc(советПоПогоде(темп,код,осадки,ветер));
+    var дни=["сегодня","завтра","послезавтра"], строки="";
+    (дн.time||[]).forEach(function(_,i){
+      if(i>2) return;
+      строки+='<li>'+дни[i]+': '+Math.round(дн.temperature_2m_min[i])+"…"+
+        (дн.temperature_2m_max[i]>0?"+":"")+Math.round(дн.temperature_2m_max[i])+"°, "+
+        esc(ПОГОДА_КОДЫ[дн.weather_code[i]]||"без осадков")+
+        ((дн.precipitation_probability_max||[])[i]>=40?(", осадки "+дн.precipitation_probability_max[i]+"%"):"")+'</li>';
+    });
+    $("#wxDays").innerHTML=строки;
+    st.textContent="обновлено";
+    try{ localStorage.setItem("shumm-wx",JSON.stringify({deg:$("#wxDeg").textContent,
+      text:$("#wxText").innerHTML, days:строки, ts:Date.now()})); }catch(e){}
+  }).catch(function(){
+    var было=null;
+    try{ было=JSON.parse(localStorage.getItem("shumm-wx")||"null"); }catch(e){}
+    if(было){
+      $("#wxDeg").textContent=было.deg; $("#wxText").innerHTML=было.text; $("#wxDays").innerHTML=было.days;
+      st.textContent="из памяти";
+    } else {
+      $("#wxText").textContent=(location.hostname.indexOf("claude")>-1)
+        ? "Внутри Claude прогноз недоступен: площадка запрещает внешние запросы."
+        : "Прогноз не загрузился, попробую при следующем открытии.";
+      st.textContent="нет связи";
+    }
+  });
+}
+
 /* ---------------- misc ---------------- */
 var toastT;
 function toast(msg){
@@ -1046,7 +1107,7 @@ function clock(){
 }
 clock(); setInterval(clock,20000);
 
-drawWork();
+drawWork(); загрузитьПогоду();
 syncType(); boot();
 загрузитьСохранённое();
 if(SRC.url) loadWork();
