@@ -285,31 +285,79 @@ function заполнитьОтчёт() {
  * Найденный номер запоминается, повторно искать не нужно.
  */
 function найтиЧат_() {
-  if (НАСТРОЙКИ.telegramЧат) return НАСТРОЙКИ.telegramЧат;
+  if (НАСТРОЙКИ.telegramЧат) { Logger.log('Чат взят из настроек: ' + НАСТРОЙКИ.telegramЧат); return НАСТРОЙКИ.telegramЧат; }
   var хранилище = PropertiesService.getScriptProperties();
   var сохранённый = хранилище.getProperty('чат');
-  if (сохранённый) return сохранённый;
+  if (сохранённый) { Logger.log('Чат уже был найден раньше: ' + сохранённый); return сохранённый; }
 
   var ответ = UrlFetchApp.fetch(
     'https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/getUpdates',
     { muteHttpExceptions: true });
-  var данные = JSON.parse(ответ.getContentText() || '{}');
+  var код = ответ.getResponseCode();
+  var тело = ответ.getContentText();
+  Logger.log('Спросил у Telegram новые сообщения, ответ ' + код);
+  if (код !== 200) {
+    Logger.log('Telegram отказал. Это почти всегда неверный токен бота. Ответ: ' + тело.slice(0, 300));
+    return '';
+  }
+  var данные = JSON.parse(тело || '{}');
   var обновления = данные.result || [];
+  Logger.log('Сообщений в очереди: ' + обновления.length);
+  if (!обновления.length) {
+    Logger.log('Очередь пуста. Причины бывают две: вы ещё не писали боту, либо сообщения уже забрал ' +
+      'другой сервис, подключённый к этому же боту. Напишите боту ещё раз и запустите снова.');
+  }
   for (var i = обновления.length - 1; i >= 0; i--) {
     var сообщение = обновления[i].message || обновления[i].edited_message;
     if (сообщение && сообщение.chat && сообщение.chat.id) {
       var чат = String(сообщение.chat.id);
       хранилище.setProperty('чат', чат);
+      Logger.log('Нашёл ваш чат: ' + чат + '. Запомнил, больше искать не буду.');
       return чат;
     }
   }
   return '';
 }
 
-function отправитьСводку() {
-  if (!НАСТРОЙКИ.telegramТокен) return 'Telegram не настроен';
+/** Разбирает по шагам, почему сводка не дошла. Запускать при любой заминке с Telegram. */
+function проверкаTelegram() {
+  if (!НАСТРОЙКИ.telegramТокен || НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') === 0) {
+    Logger.log('Токен бота не вписан в настройки.');
+    return;
+  }
+  var кто = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/getMe',
+    { muteHttpExceptions: true });
+  if (кто.getResponseCode() !== 200) {
+    Logger.log('Telegram не признал токен. Ответ: ' + кто.getContentText().slice(0, 300));
+    return;
+  }
+  var имя = (JSON.parse(кто.getContentText()).result || {}).username;
+  Logger.log('Бот на связи: @' + имя + '. Именно ему нужно написать сообщение.');
+
   var чат = найтиЧат_();
-  if (!чат) return 'Напишите боту любое сообщение и запустите ещё раз: пока не вижу, в какой чат слать';
+  if (!чат) { Logger.log('Чат не найден, отправлять некуда.'); return; }
+
+  var отправка = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/sendMessage', {
+    method: 'post',
+    payload: { chat_id: чат, text: 'Shumm на связи. Это проверочное сообщение.' },
+    muteHttpExceptions: true
+  });
+  Logger.log('Отправка, ответ ' + отправка.getResponseCode() + ': ' + отправка.getContentText().slice(0, 300));
+}
+
+/** Забывает найденный чат, чтобы искать заново. */
+function сброситьЧат() {
+  PropertiesService.getScriptProperties().deleteProperty('чат');
+  Logger.log('Чат забыт. Напишите боту и запустите проверкаTelegram.');
+}
+
+function отправитьСводку() {
+  if (!НАСТРОЙКИ.telegramТокен) { Logger.log('Токен бота не вписан.'); return 'Telegram не настроен'; }
+  var чат = найтиЧат_();
+  if (!чат) {
+    Logger.log('Не знаю, в какой чат слать. Напишите боту сообщение и запустите проверкаTelegram.');
+    return 'Чат не найден';
+  }
   var ц = собратьЦифры();
   var план = ц.plan.target ? Math.round(ц.plan.done / ц.plan.target * 100) : 0;
   var текст = [
@@ -322,11 +370,13 @@ function отправитьСводку() {
     ц.problems.length ? ('Требуют вас: ' + ц.problems.length) : 'Зависших сделок нет'
   ].join('\n');
 
-  UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/sendMessage', {
+  var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/sendMessage', {
     method: 'post',
     payload: { chat_id: чат, text: текст },
     muteHttpExceptions: true
   });
+  Logger.log('Отправка сводки в чат ' + чат + ', ответ ' + ответ.getResponseCode() +
+    ': ' + ответ.getContentText().slice(0, 300));
   return 'Отправлено в чат ' + чат;
 }
 
