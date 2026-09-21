@@ -299,6 +299,8 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div class="mh"><h3>Тамбов</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="wxState">погода…</span></div>
         <div class="wx"><span class="num deg" id="wxDeg">—</span><span class="sub" style="margin:0" id="wxText">Загружаю прогноз.</span></div>
         <ul class="news" id="wxDays"></ul>
+        <div class="mh" style="margin:16px 0 8px"><h3 style="font-size:12px">Новости города</h3><span class="sp"></span><span class="mono" style="font-size:10.5px;color:var(--ink3)" id="cityState">ждёт источника</span></div>
+        <ul class="news" id="cityNews"></ul>
       </section>
 
       <section class="mod c12">
@@ -344,6 +346,11 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div class="mh"><h3>Разбор РОП-аналитика</h3><span class="sp"></span></div>
         <p class="advice" id="ropText">Агент разбирает работу менеджеров по регламенту и сделкам. Нажмите, чтобы получить разбор по текущим цифрам.</p>
         <button class="btn" id="ropBtn" style="margin-top:12px">Получить разбор</button>
+      </section>
+
+      <section class="mod c12">
+        <div class="mh"><h3>Рынок</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="marketState">ждёт источника</span></div>
+        <ul class="news" id="marketNews"></ul>
       </section>
 
       <section class="mod c12">
@@ -419,8 +426,8 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <button class="btn" id="finBtn" style="margin-top:12px">Получить совет</button>
       </section>
       <section class="mod c5">
-        <div class="mh"><h3>Финансовые новости</h3><span class="sp"></span><span class="demo">ждёт агента</span></div>
-        <p class="sub" style="margin:0">Агент будет приносить сюда главную мировую финансовую новость дня на русском. Подключается вместе с источником новостей.</p>
+        <div class="mh"><h3>Финансовые новости</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="finState">ждёт источника</span></div>
+        <ul class="news" id="finNews"></ul>
       </section>
     </div>
 
@@ -507,6 +514,7 @@ var WORK={
   funnel:{quals:84, measures:57, contracts:19},
   managers:[{name:"А. С.",area:"тихие стены",pct:92},{name:"И. М.",area:"ремонты",pct:74},
             {name:"Д. В.",area:"ремонты",pct:61},{name:"Р. К.",area:"ремонты",pct:38}],
+  news:{city:[],market:[],finance:[]},
   problems:[{id:"4412",title:"Квал с сайта, Тихие стены",note:"без касания",age:"61 ч",level:"bad"},
             {id:"4390",title:"Ремонт под ключ, Мичуринская",note:"замер перенесён дважды",age:"2 дн",level:"bad"},
             {id:"4377",title:"Отложенный спрос",note:"нет следующего шага",age:"4 дн",level:"warn"}]
@@ -900,7 +908,24 @@ function drawNotice(){
       '<b style="color:#7FD9B4">\u2713</b><span>Цифры получены из AmoCRM через n8n, '+when+'.</span></div>';
   }
 }
-function drawWork(){ drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTherm(); drawProblems(); drawNotice(); }
+function drawNews(){
+  [["city","#cityNews","#cityState"],["market","#marketNews","#marketState"],
+   ["finance","#finNews","#finState"]].forEach(function(п){
+    var список=(WORK.news||{})[п[0]]||[], box=$(п[1]), st=$(п[2]);
+    if(!box) return;
+    if(!список.length){
+      box.innerHTML='<li class="sub" style="border:0">Подборка появится, когда агент принесёт заголовки.</li>';
+      if(st) st.textContent = WORK.demo ? "ждёт источника" : "пусто";
+      return;
+    }
+    box.innerHTML=список.map(function(н){
+      var ссылка=н.link ? '<a class="link" href="'+esc(н.link)+'" target="_blank" rel="noopener">'+esc(н.title)+'</a>' : esc(н.title);
+      return '<li>'+ссылка+(н.source?'<span class="sub" style="margin:2px 0 0; display:block">'+esc(н.source)+'</span>':'')+'</li>';
+    }).join("");
+    if(st) st.textContent=список.length+" заголовка";
+  });
+}
+function drawWork(){ drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTherm(); drawProblems(); drawNotice(); drawNews(); }
 
 /* ---------------- источник данных ---------------- */
 function srcMsg(t,bad){ var e=$("#srcMsg"); if(e){ e.textContent=t; e.style.color=bad?"#F08098":"var(--ink3)"; } }
@@ -934,6 +959,7 @@ function applyWork(d, изКеша){
   if(d.funnel) WORK.funnel=d.funnel;
   if(d.managers) WORK.managers=d.managers;
   if(d.problems) WORK.problems=d.problems;
+  if(d.news) WORK.news=d.news;
   WORK.updated=d.updated||new Date().toISOString();
   WORK.demo=false;
   drawWork();
