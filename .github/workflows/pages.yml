@@ -2,7 +2,7 @@ name: Публикация Shumm
 
 on:
   push:
-    branches: [claude/awesome-bell-l1acin, main]
+    branches: [claude/awesome-bell-l1acin, claude/zealous-dirac-upb6pg, main]
   workflow_dispatch:
 
 permissions:

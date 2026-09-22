@@ -1,5 +1,5 @@
 /* Shumm service worker: приложение открывается из кеша даже без сети. */
-var CACHE = "shumm-v2";
+var CACHE = "shumm-v3";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg",
              "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 

@@ -306,12 +306,12 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
       <section class="mod c12">
         <div class="mh"><h3>Агенты</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)">МСК</span></div>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:0 22px">
-          <div class="ag"><span class="d wait"></span>Отчётник · Google Sheets<span class="t">08:30</span></div>
-          <div class="ag"><span class="d wait"></span>Сводка в Telegram<span class="t">09:00</span></div>
-          <div class="ag"><span class="d wait"></span>Секретарь · список дел<span class="t">09:05</span></div>
-          <div class="ag"><span class="d wait"></span>РОП-аналитик · AmoCRM<span class="t">ждёт доступа</span></div>
-          <div class="ag"><span class="d wait"></span>Рынок и новости<span class="t">ждёт доступа</span></div>
-          <div class="ag"><span class="d wait"></span>Погода<span class="t">ждёт доступа</span></div>
+          <div class="ag"><span class="d wait" data-src></span>Отчётник · Google Sheets<span class="t">08:30</span></div>
+          <div class="ag"><span class="d wait" data-src></span>Сводка в Telegram<span class="t">09:00</span></div>
+          <div class="ag"><span class="d wait" data-sec></span>Секретарь · список дел<span class="t" id="secState">09:05</span></div>
+          <div class="ag"><span class="d wait" data-src></span>РОП-аналитик · AmoCRM<span class="t">по кнопке</span></div>
+          <div class="ag"><span class="d wait" data-src></span>Рынок и новости<span class="t">раз в час</span></div>
+          <div class="ag"><span class="d"></span>Погода<span class="t">без ключей</span></div>
         </div>
       </section>
     </div>
@@ -337,10 +337,10 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div id="w-problems"></div>
       </section>
       <section class="mod c6">
-        <div class="mh"><h3>Отчёт 08:30</h3><span class="sp"></span><span class="tag warn">2 пустые клетки</span></div>
+        <div class="mh"><h3>Отчёт 08:30</h3><span class="sp"></span><span class="tag ok">заполняется сам</span></div>
         <p style="font-size:13.5px; color:var(--ink2); margin:0 0 10px">Агент заполняет таблицу ежедневно в 8:30 по Москве из основной воронки и отложенного спроса. Замеры остаются пустыми, их вы ставите сами.</p>
-        <p class="sub" style="margin:0 0 12px">Не хватило данных: источник обращения по двум квалам за вчера. Варианты агента: взять источник из первой сделки контакта или оставить прочерк.</p>
-        <a class="link" id="sheetLink" href="https://docs.google.com/spreadsheets/d/1shynPgH8zuxJV1U9VGeTmPVxgll32nG-/edit?gid=1888872931#gid=1888872931" target="_blank" rel="noopener">Открыть таблицу отчёта</a>
+        <p class="sub" style="margin:0 0 12px">Колонка «Замеров вручную» остаётся пустой: её заполняете вы. Рядом стоит то же число по CRM, чтобы расхождение было видно сразу.</p>
+        <a class="link" id="sheetLink" href="https://docs.google.com/spreadsheets/d/1bE0-C2NKdDyPTp_P-5c4fyOGwfP1dlooQjRu9AlffFw/edit" target="_blank" rel="noopener">Открыть таблицу отчёта</a>
       </section>
       <section class="mod c6">
         <div class="mh"><h3>Разбор РОП-аналитика</h3><span class="sp"></span></div>
@@ -355,7 +355,7 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
 
       <section class="mod c12">
         <div class="mh"><h3>Источник данных</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)" id="srcState">не задан</span></div>
-        <p class="sub" style="margin:0 0 12px">Shumm спрашивает цифры у вашего n8n, а токен AmoCRM остаётся внутри n8n. Адрес и ключ хранятся только на этом устройстве.</p>
+        <p class="sub" style="margin:0 0 12px">Shumm спрашивает цифры у вашего скрипта Google, а токен AmoCRM остаётся внутри скрипта. Адрес и ключ хранятся только на этом устройстве.</p>
         <div class="form" style="grid-template-columns:1fr 200px auto auto">
           <input type="text" id="srcUrl" placeholder="Адрес скрипта, заканчивается на /exec" aria-label="Адрес источника">
           <input type="text" id="srcKey" placeholder="Ключ доступа" aria-label="Ключ доступа">
@@ -471,7 +471,7 @@ select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,v
         <div class="mh"><h3>Календарь</h3><span class="sp"></span><span class="demo">не подключён</span></div>
         <p class="sub" style="margin:0 0 12px">После доступа к календарю встречи приедут сюда автоматически, а закрытые дела уйдут обратно в календарь.</p>
         <div class="ag"><span class="d wait"></span>Синхронизация<span class="t">ждёт доступа</span></div>
-        <div class="ag"><span class="d wait"></span>Секретарь · 09:05<span class="t">ждёт доступа</span></div>
+        <div class="ag"><span class="d wait" data-sec></span>Секретарь · 09:05<span class="t" id="secState2">ждёт источника</span></div>
       </section>
     </div>
   </main>
@@ -616,6 +616,8 @@ function renderTasks(){
   });
   box.addEventListener("click",function(e){
     var d=e.target.dataset.del; if(d===undefined) return;
+    var убранное=S.tasks[period][+d];
+    if(убранное && убранное.tg){ secDeleted[убранное.id]=1; try{ localStorage.setItem("shumm-sec-del",JSON.stringify(secDeleted)); }catch(err){} }
     S.tasks[period].splice(+d,1); save("tasks"); renderTasks();
   });
 });
@@ -927,6 +929,51 @@ function drawNews(){
 }
 function drawWork(){ drawGauge(); drawLine(); drawFunnel(); drawMgrs(); drawTherm(); drawProblems(); drawNotice(); drawNews(); }
 
+/* ---------------- секретарь ---------------- */
+/* Дела, присланные боту в Telegram, лежат в скрипте. Забираем их отдельным лёгким запросом
+   и добавляем в список дня те, которых ещё нет. Отметки «сделано» и удаления остаются за вами. */
+function secState(text, on){
+  ["secState","secState2"].forEach(function(id){ var e=$("#"+id); if(e) e.textContent=text; });
+  $$("[data-sec]").forEach(function(d){ d.classList.toggle("wait", !on); });
+  $$("[data-src]").forEach(function(d){ d.classList.toggle("wait", !SRC.url); });
+}
+var secDeleted={};
+try{ secDeleted=JSON.parse(localStorage.getItem("shumm-sec-del")||"{}"); }catch(e){}
+function mergeSecretary(d){
+  if(!d || d.error || !d.tasks) throw new Error(d && d.error ? d.error : "пустой ответ");
+  var list=S.tasks.day, have={}, added=0;
+  list.forEach(function(t){ have[t.id]=true; });
+  d.tasks.forEach(function(t){
+    if(!t || !t.id || have[t.id] || secDeleted[t.id]) return;
+    list.push({id:t.id, text:String(t.text||"").slice(0,200), when:String(t.when||""), done:false, tg:true});
+    added++;
+  });
+  if(added){ save("tasks"); renderTasks(); toast(added===1?"Секретарь принёс 1 дело":"Секретарь принёс дел: "+added); }
+  secState(d.tasks.length?("сегодня "+d.tasks.length):"подключён", true);
+}
+function loadSecretary(){
+  if(!SRC.url){ secState("ждёт источника", false); return; }
+  var base=srcAddr(); var addr=base+(base.indexOf("?")>-1?"&":"?")+"do=tasks";
+  fetch(addr).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+    .then(mergeSecretary)
+    .catch(function(){
+      return new Promise(function(res,rej){
+        var cb="shummSec"+Date.now().toString(36), sc=document.createElement("script"), t;
+        function done(){ clearTimeout(t); try{ delete window[cb]; }catch(e){} if(sc.parentNode) sc.parentNode.removeChild(sc); }
+        t=setTimeout(function(){ done(); rej(new Error("нет ответа")); },30000);
+        window[cb]=function(d){ done(); res(d); };
+        sc.onerror=function(){ done(); rej(new Error("недоступен")); };
+        sc.src=addr+"&callback="+cb; document.head.appendChild(sc);
+      }).then(mergeSecretary);
+    })
+    .catch(function(e){
+      var старая=String(e && e.message||"").indexOf("пустой")>-1;
+      secState(старая?"обновите скрипт":"нет связи", false);
+    });
+}
+setInterval(function(){ if(SRC.url && !document.hidden) loadSecretary(); }, 5*60*1000);
+document.addEventListener("visibilitychange",function(){ if(!document.hidden && SRC.url) loadSecretary(); });
+
 /* ---------------- источник данных ---------------- */
 function srcMsg(t,bad){ var e=$("#srcMsg"); if(e){ e.textContent=t; e.style.color=bad?"#F08098":"var(--ink3)"; } }
 function srcAddr(cb){
@@ -1001,7 +1048,7 @@ if($("#srcSave")){
   $("#srcSave").addEventListener("click",function(){
     SRC.url=$("#srcUrl").value.trim(); SRC.key=$("#srcKey").value.trim();
     try{ localStorage.setItem("shumm-src",JSON.stringify(SRC)); }catch(e){}
-    loadWork();
+    loadWork(); loadSecretary();
   });
   $("#srcPlan").value=SRC.plan||"";
   $("#srcPlanSave").addEventListener("click",function(){
@@ -1014,7 +1061,7 @@ if($("#srcSave")){
   $("#srcClear").addEventListener("click",function(){
     SRC={url:"",key:"",plan:0}; $("#srcUrl").value=""; $("#srcKey").value=""; $("#srcPlan").value="";
     try{ localStorage.removeItem("shumm-src"); }catch(e){}
-    WORK.demo=true; drawWork(); $("#srcState").textContent="не задан"; srcMsg("Источник сброшен, показаны демо-цифры.");
+    WORK.demo=true; drawWork(); $("#srcState").textContent="не задан"; srcMsg("Источник сброшен, показаны демо-цифры."); secState("ждёт источника", false);
   });
 }
 
@@ -1137,5 +1184,6 @@ drawWork(); загрузитьПогоду();
 syncType(); boot();
 загрузитьСохранённое();
 if(SRC.url) loadWork();
+loadSecretary();
 })();
 </script>
