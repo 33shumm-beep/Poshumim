@@ -12,7 +12,7 @@
  */
 
 // Номер версии. Чтобы убедиться, что в Google встала именно эта, найдите строку через Ctrl+F.
-var ВЕРСИЯ = 'Shumm v9 · секретарь 22.09';
+var ВЕРСИЯ = 'Shumm v10 · секретарь 22.09';
 
 var НАСТРОЙКИ = {
   // Токен AmoCRM. Вставьте между кавычками.
@@ -77,6 +77,7 @@ var ЭТАПЫ_ЗАМЕР = [48427108, 87672278];
 function doGet(e) {
   var параметры = (e && e.parameter) || {};
   var ответ;
+  запомнитьАдрес_();
 
   if (параметры.key !== НАСТРОЙКИ.ключ) {
     ответ = { error: 'Неверный ключ' };
@@ -857,6 +858,42 @@ function склонение_(n, один, два, пять) {
   return n + ' ' + слово;
 }
 
+/**
+ * Настоящий адрес веб-приложения. Из редактора getUrl() иногда отдаёт адрес
+ * тестовой версии (/dev), куда Telegram не пустят без входа в Google, поэтому
+ * адрес /exec запоминается в момент, когда по нему реально пришёл запрос.
+ */
+function запомнитьАдрес_() {
+  try {
+    var адрес = ScriptApp.getService().getUrl() || '';
+    if (/\/exec$/.test(адрес)) PropertiesService.getScriptProperties().setProperty('адресExec', адрес);
+  } catch (e) {}
+}
+
+function адресВебПриложения_() {
+  var сохранённый = PropertiesService.getScriptProperties().getProperty('адресExec');
+  if (сохранённый) return сохранённый;
+  var адрес = ScriptApp.getService().getUrl() || '';
+  return адрес.replace(/\/dev$/, '/exec');
+}
+
+/** Спрашивает у Telegram, куда он носит сообщения и что при этом случилось в последний раз. */
+function состояниеВебхука_() {
+  var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/getWebhookInfo',
+    { muteHttpExceptions: true });
+  var данные = {};
+  try { данные = JSON.parse(ответ.getContentText()).result || {}; } catch (e) {}
+  Logger.log('Telegram носит сообщения на адрес: ' + (данные.url || 'НИКУДА (вебхук не задан)'));
+  Logger.log('Сообщений в очереди у Telegram: ' + (данные.pending_update_count || 0));
+  if (данные.last_error_message) {
+    Logger.log('Последняя ошибка Telegram (' + new Date((данные.last_error_date || 0) * 1000).toLocaleString('ru-RU') +
+      '): ' + данные.last_error_message);
+  } else {
+    Logger.log('Ошибок доставки Telegram не видел.');
+  }
+  return данные;
+}
+
 /** Утренний вопрос в 9:05. Если список на сегодня уже прислан, секретарь его просто повторит. */
 function секретарьУтром() {
   if (!НАСТРОЙКИ.telegramТокен || НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') === 0) return 'Telegram не настроен';
@@ -882,12 +919,16 @@ function подключитьСекретаря() {
     Logger.log('Токен бота не вписан в настройки.');
     return 'Нет токена';
   }
-  var адрес = ScriptApp.getService().getUrl();
+  var адрес = адресВебПриложения_();
   if (!адрес) {
     Logger.log('Веб-приложение ещё не развёрнуто: сначала «Начать развёртывание».');
     return 'Нет адреса';
   }
   Logger.log('Адрес веб-приложения: ' + адрес);
+  if (!/\/exec$/.test(адрес)) {
+    Logger.log('Это не боевой адрес. Откройте приложение Shumm один раз, чтобы оно постучалось по адресу /exec, и запустите снова.');
+    return 'Не тот адрес';
+  }
   var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/setWebhook', {
     method: 'post',
     payload: { url: адрес, allowed_updates: JSON.stringify(['message', 'edited_message']) },
@@ -900,6 +941,7 @@ function подключитьСекретаря() {
     Logger.log('СЕКРЕТАРЬ ПОДКЛЮЧЁН. Напишите боту слово «тест»: он ответит, что записал одно дело.');
     return 'Секретарь подключён';
   }
+  Logger.log('Telegram отказал. Пришлите этот журнал целиком.');
   return 'Telegram отказал';
 }
 
@@ -917,8 +959,10 @@ function проверкаСекретаря() {
   var дела = разобратьДела_(пример);
   дела.forEach(function (д) { Logger.log(строкаДела_(д)); });
   var хук = PropertiesService.getScriptProperties().getProperty('вебхук');
-  Logger.log(хук ? ('Секретарь подключён к адресу ' + хук) : 'Секретарь ещё не подключён: запустите подключитьСекретаря.');
+  Logger.log(хук ? ('Секретарь подключался к адресу ' + хук) : 'Секретарь ещё не подключён: запустите подключитьСекретаря.');
   Logger.log('Записано на сегодня: ' + делаЗаДень_(сегодняКлюч_()).length);
+  Logger.log('Известный чат: ' + (НАСТРОЙКИ.telegramЧат || PropertiesService.getScriptProperties().getProperty('чат') || 'ещё не найден'));
+  if (НАСТРОЙКИ.telegramТокен && НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') !== 0) состояниеВебхука_();
   return дела;
 }
 
