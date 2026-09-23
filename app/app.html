@@ -261,7 +261,10 @@ select option{background:#0E0C15;}
   input,select,textarea{font-size:16px; min-height:44px;}
   .ag{font-size:15px; padding:11px 0;} .ag .t{font-size:11.5px;}
   .news li,.sub,.advice{font-size:15px;}
-  .tabs button{font-size:11px;}
+  .tabs{padding:12px 4px calc(12px + env(safe-area-inset-bottom,0px));}
+  .tabs button{font-size:12.5px; gap:8px; padding:4px 6px; min-width:60px;}
+  .tabs b{width:9px; height:9px;}
+  .main{padding-bottom:130px;}
 }
 </style>
 
@@ -530,6 +533,19 @@ select option{background:#0E0C15;}
 </nav>
 
 <script>
+/* Некоторые телефоны в браузере отчитываются о ширине как планшет, и всё выходит мелким.
+   На сенсорном экране шире 480 точек страница увеличивается так, чтобы раскладка
+   считалась на ширину около 420 точек, как на обычном телефоне. */
+(function(){
+  function подогнать(){
+    if(!window.matchMedia || !matchMedia("(pointer:coarse)").matches) return;
+    var корень=document.documentElement, текущий=parseFloat(корень.style.zoom)||1;
+    var ширина=корень.getBoundingClientRect().width*текущий;
+    var z = ширина>480 ? Math.min(2.6, Math.round(ширина/420*100)/100) : 1;
+    корень.style.zoom = z===1 ? "" : String(z);
+  }
+  подогнать(); window.addEventListener("resize",подогнать); window.addEventListener("orientationchange",подогнать);
+})();
 (function(){
 "use strict";
 var $=function(s,r){ return (r||document).querySelector(s); };
