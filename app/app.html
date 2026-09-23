@@ -489,9 +489,9 @@ select option{background:#0E0C15;}
         </div>
       </section>
       <section class="mod c4">
-        <div class="mh"><h3>Календарь</h3><span class="sp"></span><span class="demo">не подключён</span></div>
-        <p class="sub" style="margin:0 0 12px">После доступа к календарю встречи приедут сюда автоматически, а закрытые дела уйдут обратно в календарь.</p>
-        <div class="ag"><span class="d wait"></span>Синхронизация<span class="t">ждёт доступа</span></div>
+        <div class="mh"><h3>Календарь</h3><span class="sp"></span><span class="demo" id="calBadge">не подключён</span></div>
+        <p class="sub" style="margin:0 0 12px">Google-календарь той же почты. Дела со временем становятся встречами, встречи приходят сюда, а закрытые дела получают галочку в календаре.</p>
+        <div class="ag"><span class="d wait" id="calDot"></span>Синхронизация<span class="t" id="calState">ждёт доступа</span></div>
         <div class="ag"><span class="d wait" data-sec></span>Секретарь · 09:05<span class="t" id="secState2">ждёт источника</span></div>
       </section>
     </div>
@@ -1051,11 +1051,15 @@ function mergeSecretary(d){
   list.forEach(function(t){ have[t.id]=true; });
   d.tasks.forEach(function(t){
     if(!t || !t.id || have[t.id] || secDeleted[t.id]) return;
-    list.push({id:t.id, text:String(t.text||"").slice(0,200), when:String(t.when||""), done:false, tg:true});
+    list.push({id:t.id, text:String(t.text||"").slice(0,200), when:String(t.when||""), done:!!t.done, tg:true, cal:!!t.cal});
     added++;
   });
   if(added){ save("tasks"); renderTasks(); toast(added===1?"Секретарь принёс 1 дело":"Секретарь принёс дел: "+added); }
   secState(d.tasks.length?("сегодня "+d.tasks.length):"подключён", true);
+  var cb=$("#calBadge"), cd=$("#calDot"), cs=$("#calState");
+  if(cb){ cb.textContent=d.calendar?"подключён":"не подключён"; }
+  if(cd){ cd.classList.toggle("wait", !d.calendar); }
+  if(cs){ cs.textContent=d.calendar?"Google, раз в 5 минут":"запустите подключитьКалендарь"; }
 }
 function секретарьЗапрос(параметры){
   var base=srcAddr(), addr=base+(base.indexOf("?")>-1?"&":"?")+параметры;
