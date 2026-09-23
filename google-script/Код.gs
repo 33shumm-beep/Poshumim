@@ -12,7 +12,7 @@
  */
 
 // Номер версии. Чтобы убедиться, что в Google встала именно эта, найдите строку через Ctrl+F.
-var ВЕРСИЯ = 'Shumm v11 · секретарь 22.09';
+var ВЕРСИЯ = 'Shumm v12 · отчёт пересчитывает месяц 23.09';
 
 var НАСТРОЙКИ = {
   // Токен AmoCRM. Вставьте между кавычками.
@@ -989,7 +989,9 @@ function проверкаСекретаря() {
 
 function включитьРасписание() {
   ScriptApp.getProjectTriggers().forEach(function (т) { ScriptApp.deleteTrigger(т); });
-  ScriptApp.newTrigger('заполнитьОтчёт').timeBased().atHour(8).nearMinute(30).everyDays(1).create();
+  // Пересчёт месяца целиком, а не дописывание строки: в 8:30 сегодняшний день
+  // ещё пустой, и заявки записывались нулями. Так вчера закрывается полностью.
+  ScriptApp.newTrigger('перезаполнитьМесяц').timeBased().atHour(8).nearMinute(30).everyDays(1).create();
   ScriptApp.newTrigger('отправитьСводку').timeBased().atHour(9).nearMinute(0).everyDays(1).create();
   ScriptApp.newTrigger('секретарьУтром').timeBased().atHour(9).nearMinute(5).everyDays(1).create();
   Logger.log('Расписание включено: отчёт в 8:30, сводка в 9:00, секретарь в 9:05.');
