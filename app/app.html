@@ -535,13 +535,13 @@ select option{background:#0E0C15;}
 <script>
 /* Некоторые телефоны в браузере отчитываются о ширине как планшет, и всё выходит мелким.
    На сенсорном экране шире 480 точек страница увеличивается так, чтобы раскладка
-   считалась на ширину около 420 точек, как на обычном телефоне. */
+   считалась на ширину около 480 точек, как на крупном телефоне. */
 (function(){
   function подогнать(){
     if(!window.matchMedia || !matchMedia("(pointer:coarse)").matches) return;
     var корень=document.documentElement, текущий=parseFloat(корень.style.zoom)||1;
     var ширина=корень.getBoundingClientRect().width*текущий;
-    var z = ширина>480 ? Math.min(2.6, Math.round(ширина/420*100)/100) : 1;
+    var z = ширина>520 ? Math.min(2.4, Math.round(ширина/480*100)/100) : 1;
     корень.style.zoom = z===1 ? "" : String(z);
   }
   подогнать(); window.addEventListener("resize",подогнать); window.addEventListener("orientationchange",подогнать);
