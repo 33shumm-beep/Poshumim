@@ -240,6 +240,29 @@ select option{background:#0E0C15;}
 .tabs button.on b{opacity:1; box-shadow:0 0 10px rgba(201,167,255,.8);}
 [hidden]{display:none!important;}
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} .mod{opacity:1!important;} }
+
+/* ---- телефон и планшет: раскладка по сенсорному экрану, а не по ширине.
+   Некоторые телефоны в браузере отчитываются о ширине как планшет и получали раскладку
+   для компьютера, где всё мелко. Сенсорный экран до 1100 точек считаем телефоном. ---- */
+@media (pointer:coarse) and (max-width:1100px){
+  html{font-size:17px;}
+  body{font-size:16px;}
+  .railnav{display:none;} .railtime{margin-left:auto;} .tabs{display:flex;}
+  .main{padding:22px 16px 110px;}
+  .grid{grid-template-columns:1fr; gap:14px;}
+  .c8,.c7,.c6,.c5,.c4,.c3,.c12{grid-column:span 1;}
+  .today{grid-template-columns:1fr;}
+  .todaynum{border-left:0; border-top:1px solid var(--hair); padding:16px 0 0; align-items:flex-start; text-align:left;}
+  .form{grid-template-columns:1fr 1fr !important;} .form .wide{grid-column:1/-1;}
+  .tk label{font-size:16px;} .tk input{width:24px; height:24px;}
+  .tk .meta{font-size:11px;} .tk .del{font-size:20px; padding:4px 8px;}
+  .switch button{font-size:11px; padding:8px 12px;}
+  .btn{min-height:46px; font-size:15px;}
+  input,select,textarea{font-size:16px; min-height:44px;}
+  .ag{font-size:15px; padding:11px 0;} .ag .t{font-size:11.5px;}
+  .news li,.sub,.advice{font-size:15px;}
+  .tabs button{font-size:11px;}
+}
 </style>
 
 <div class="ground"></div><div class="grain"></div><div class="flash" id="flash"></div>
@@ -1008,7 +1031,7 @@ function drawNotice(){
     e.style.color=WORK.demo?"var(--amber)":"#9EE6C4"; e.style.borderColor=WORK.demo?"rgba(242,184,216,.4)":"rgba(158,230,196,.4)"; } });
   if(WORK.demo){
     box.innerHTML='<div class="notice"><b>!</b><span>Источник данных не подключён, поэтому рабочие цифры на этом экране демонстрационные. '+
-      'Укажите адрес вебхука n8n внизу страницы, и они заменятся вашими.</span></div>';
+      'Укажите адрес скрипта внизу страницы, и они заменятся вашими.</span></div>';
   } else {
     var t=WORK.updated?new Date(WORK.updated):null;
     var when=t?("обновлено "+("0"+t.getHours()).slice(-2)+":"+("0"+t.getMinutes()).slice(-2)):"обновлено только что";
