@@ -612,7 +612,11 @@ function renderTasks(){
   var box=document.getElementById(id);
   box.addEventListener("change",function(e){
     var i=e.target.dataset.i; if(i===undefined) return;
-    S.tasks[period][i].done=e.target.checked; save("tasks"); renderTasks();
+    var дело=S.tasks[period][i];
+    дело.done=e.target.checked; save("tasks"); renderTasks();
+    // Дела от секретаря живут ещё и в скрипте: отметку возвращаем туда,
+    // иначе в Telegram список останется неотмеченным.
+    if(дело.tg && SRC.url) отметитьВСкрипте(дело.id, дело.done);
   });
   box.addEventListener("click",function(e){
     var d=e.target.dataset.del; if(d===undefined) return;
@@ -950,6 +954,24 @@ function mergeSecretary(d){
   });
   if(added){ save("tasks"); renderTasks(); toast(added===1?"Секретарь принёс 1 дело":"Секретарь принёс дел: "+added); }
   secState(d.tasks.length?("сегодня "+d.tasks.length):"подключён", true);
+}
+function секретарьЗапрос(параметры){
+  var base=srcAddr(), addr=base+(base.indexOf("?")>-1?"&":"?")+параметры;
+  return fetch(addr).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+    .catch(function(){
+      return new Promise(function(res,rej){
+        var cb="shummSec"+Date.now().toString(36), sc=document.createElement("script"), t;
+        function done(){ clearTimeout(t); try{ delete window[cb]; }catch(e){} if(sc.parentNode) sc.parentNode.removeChild(sc); }
+        t=setTimeout(function(){ done(); rej(new Error("нет ответа")); },30000);
+        window[cb]=function(d){ done(); res(d); };
+        sc.onerror=function(){ done(); rej(new Error("недоступен")); };
+        sc.src=addr+"&callback="+cb; document.head.appendChild(sc);
+      });
+    });
+}
+function отметитьВСкрипте(id, готово){
+  секретарьЗапрос("do=task-done&id="+encodeURIComponent(id)+"&value="+(готово?"1":"0"))
+    .catch(function(){ /* отметка уже стоит на устройстве, вернём при следующей связи */ });
 }
 function loadSecretary(){
   if(!SRC.url){ secState("ждёт источника", false); return; }
