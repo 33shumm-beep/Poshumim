@@ -341,9 +341,9 @@ select option{background:#0E0C15;}
     <div class="grid view" id="v-work" hidden>
       <div class="c12" id="workNotice"></div>
       <section class="mod c7">
-        <div class="mh"><h3>Конверсия · 14 дней</h3><span class="sp"></span><span class="tag ok">+16 п.п.</span></div>
+        <div class="mh"><h3 id="convTitle">Конверсия · месяц</h3><span class="sp"></span><span class="tag ok" id="convDelta" hidden></span></div>
         <svg id="line" viewBox="0 0 560 190" style="width:100%;height:auto;display:block;overflow:visible" role="img"
-          aria-label="График конверсии за 14 дней: рост с 52 до 68 процентов при цели 80"></svg>
+          aria-label="График конверсии квал в замер по дням текущего месяца"></svg>
       </section>
       <section class="mod c5 funnel">
         <div class="mh"><h3>Воронка месяца</h3><span class="sp"></span><span class="mono" style="font-size:11px;color:var(--ink3)">осн. + отложенный</span></div>
@@ -834,10 +834,33 @@ function drawGauge(){
   if(sub) sub.innerHTML = gap ? ("до "+esc(WORK.conversion.deadline||"цели")+" нужно ещё <b style=\"color:var(--ink)\">"+gap+" п.п.</b>")
                               : "цель взята";
 }
+/* Рабочие цифры показываются только за текущий месяц по Москве. */
+var МЕС_ИМ=["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+var МЕС_РОД=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+function мскСегодня(){
+  try{ return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); }
+  catch(e){ var n=new Date(); return n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2); }
+}
+function историяМесяца(){
+  var сег=мскСегодня(), мес=сег.slice(0,7), день=+сег.slice(8,10);
+  var h=(WORK.conversion.history||[]).map(function(x){ return typeof x==="number"?{v:x}:{d:x.d,v:x.v}; });
+  // С датами отбираем точно по месяцу; без дат одна точка = один день, берём не больше дней, чем прошло с 1-го числа.
+  if(h.length && h[h.length-1].d) return h.filter(function(x){ return x.d && x.d.slice(0,7)===мес; });
+  return h.slice(-день);
+}
+function подписьДня(x,назад){
+  if(x.d) return (+x.d.slice(8,10))+" "+МЕС_РОД[+x.d.slice(5,7)-1];
+  return назад===0?"сегодня":назад===1?"вчера":назад+" дн. назад";
+}
 function drawLine(){
   var el=document.getElementById("line"); if(!el) return;
-  var d=(WORK.conversion.history||[]).slice(-14);
-  if(d.length<2){ el.innerHTML='<text x="20" y="100" fill="#6F6885" font-family="JetBrains Mono, monospace" font-size="13">История появится, когда n8n начнёт её присылать</text>'; return; }
+  var мес=+мскСегодня().slice(5,7)-1;
+  var hm=историяМесяца(), d=hm.map(function(x){ return x.v; });
+  var ttl=$("#convTitle"); if(ttl) ttl.textContent="Конверсия · "+МЕС_ИМ[мес];
+  var dl=$("#convDelta");
+  if(dl){ if(d.length>1){ var r=d[d.length-1]-d[0]; dl.hidden=false; dl.textContent=(r>0?"+":r<0?"−":"")+Math.abs(r)+" п.п. с 1-го";
+      dl.className="tag "+(r>0?"ok":r<0?"bad":"warn"); } else dl.hidden=true; }
+  if(d.length<2){ el.innerHTML='<text x="20" y="100" fill="#6F6885" font-family="JetBrains Mono, monospace" font-size="13">График месяца появится со второго дня: пока одна точка</text>'; return; }
   var W=560,H=190,L=34,R=8,T=12,B=26,lo=Math.max(0,Math.min.apply(null,d)-12),hi=Math.min(100,Math.max.apply(null,d.concat([WORK.conversion.goal||80]))+6);
   var iw=W-L-R, ih=H-T-B;
   var X=function(i){ return L+i*(iw/(d.length-1)); }, Y=function(v){ return T+ih-((v-lo)/(hi-lo||1))*ih; };
@@ -859,9 +882,9 @@ function drawLine(){
   s+='<path d="'+p+'" fill="none" stroke="#C9A7FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
   s+='<circle cx="'+X(d.length-1).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="4.5" fill="#C9A7FF" stroke="#07060B" stroke-width="2"/>';
   s+='<text x="'+(X(d.length-1)-6).toFixed(1)+'" y="'+(Y(last)-12).toFixed(1)+'" text-anchor="end" fill="#F4F1FA" font-family="JetBrains Mono, monospace" font-size="12">'+last+'%</text>';
-  s+='<text x="'+L+'" y="'+(H-6)+'" fill="#6F6885" font-family="JetBrains Mono, monospace" font-size="10">'+(d.length-1)+' дн. назад</text>';
+  s+='<text x="'+L+'" y="'+(H-6)+'" fill="#6F6885" font-family="JetBrains Mono, monospace" font-size="10">'+подписьДня(hm[0],d.length-1)+'</text>';
   s+='<text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" fill="#6F6885" font-family="JetBrains Mono, monospace" font-size="10">сегодня</text>';
-  d.forEach(function(v,i){ s+='<circle class="pt" data-v="'+v+'" data-b="'+(d.length-1-i)+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="11" fill="transparent"/>'; });
+  d.forEach(function(v,i){ s+='<circle class="pt" data-v="'+v+'" data-l="'+подписьДня(hm[i],d.length-1-i)+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="11" fill="transparent"/>'; });
   el.innerHTML=s;
 }
 var lineTip=null;
@@ -869,8 +892,7 @@ document.addEventListener("mouseover",function(ev){
   var t=ev.target;
   if(!t.classList||!t.classList.contains("pt")) return;
   if(!lineTip){ lineTip=document.createElement("div"); lineTip.className="tip"; document.body.appendChild(lineTip); }
-  var back=+t.getAttribute("data-b");
-  lineTip.innerHTML='<span class="v">'+t.getAttribute("data-v")+"%</span> · "+(back===0?"сегодня":back===1?"вчера":back+" дн. назад");
+  lineTip.innerHTML='<span class="v">'+t.getAttribute("data-v")+"%</span> · "+t.getAttribute("data-l");
   var r=t.getBoundingClientRect(); lineTip.style.left=(r.left+r.width/2)+"px"; lineTip.style.top=r.top+"px"; lineTip.hidden=false;
 });
 document.addEventListener("mouseout",function(ev){
@@ -1051,7 +1073,7 @@ function applyWork(d, изКеша){
   if(d.plan) WORK.plan={target:SRC.plan||d.plan.target||WORK.plan.target, done:d.plan.done||0};
   if(d.conversion) WORK.conversion={current:d.conversion.current||0, goal:d.conversion.goal||80,
     deadline:d.conversion.deadline||WORK.conversion.deadline,
-    history:(d.conversion.history||[]).map(function(h){ return typeof h==="number"?h:h.v; })};
+    history:d.conversion.history||[]};
   if(d.funnel) WORK.funnel=d.funnel;
   if(d.managers) WORK.managers=d.managers;
   if(d.problems) WORK.problems=d.problems;
