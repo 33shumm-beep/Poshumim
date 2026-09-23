@@ -547,11 +547,16 @@ function localLoad(){
   try{ var r=localStorage.getItem("shumm"); if(r){ var o=JSON.parse(r);
     if(o.fin) S.fin=o.fin; if(o.tasks) S.tasks=o.tasks; if(o.goals) S.goals=o.goals; } }catch(e){}
 }
-function localSave(){ try{ localStorage.setItem("shumm",JSON.stringify({fin:S.fin,tasks:S.tasks,goals:S.goals})); }catch(e){} }
+function localSave(){ try{ localStorage.setItem("shumm",JSON.stringify({fin:S.fin,tasks:S.tasks,goals:S.goals})); localStorage.setItem("shumm-meta",JSON.stringify(META)); }catch(e){} }
+
+/* Время последней записи каждого раздела. По нему устройства решают, чья копия свежее. */
+var META={fin:0,goals:0,tasks:0};
+try{ var mv=JSON.parse(localStorage.getItem("shumm-meta")||"{}"); ["fin","goals","tasks"].forEach(function(k){ if(mv[k]) META[k]=mv[k]; }); }catch(e){}
 
 function save(key){
+  META[key]=Date.now();
   localSave();
-  if(!DB) return;
+  if(!DB){ pushState(key); return; }
   clearTimeout(saveT[key]);
   saveT[key]=setTimeout(function(){
     var body = key==="goals" ? {items:S.goals} : S[key];
@@ -564,6 +569,54 @@ function save(key){
 function setSync(on,label){
   var el=$("#syncStat");
   el.innerHTML='<b class="'+(on?"":"off")+'"></b>'+label;
+}
+
+/* ---------------- общее состояние через скрипт ---------------- */
+/* Финансы, цели и списки на неделю и месяц лежат в таблице отчёта рядом с делами.
+   Каждый раздел уходит в скрипт после правки, а при открытии забирается обратно,
+   если на другом устройстве его меняли позже. */
+var pushT={};
+function stateBody(key){
+  if(key==="tasks") return {week:S.tasks.week||[], month:S.tasks.month||[]};
+  if(key==="goals") return {items:S.goals};
+  return S.fin;
+}
+function localHas(key){
+  if(key==="tasks") return (S.tasks.week||[]).length || (S.tasks.month||[]).length;
+  if(key==="goals") return S.goals.length;
+  return S.fin.entries.length || S.fin.cash || S.fin.savings;
+}
+function pushState(key){
+  if(!SRC.url) return;
+  clearTimeout(pushT[key]);
+  pushT[key]=setTimeout(function(){
+    var base=srcAddr(), addr=base+(base.indexOf("?")>-1?"&":"?")+"do=state-set";
+    fetch(addr,{method:"POST", body:JSON.stringify({key:key, value:stateBody(key), updated:META[key]})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(!d || d.error) throw new Error(d&&d.error||"пусто"); setSync(true,"синхронизировано"); })
+      .catch(function(){ setSync(false,"локально"); });
+  },1500);
+}
+function pullState(){
+  if(!SRC.url || DB) return;
+  секретарьЗапрос("do=state").then(function(d){
+    if(!d || d.error || !d.state) throw new Error(d&&d.error||"нет состояния");
+    var st=d.state, changed=false;
+    ["fin","goals","tasks"].forEach(function(key){
+      var r=st[key];
+      if(r && r.value && r.updated>(META[key]||0)){
+        if(key==="fin" && r.value.cats) S.fin=r.value;
+        else if(key==="goals" && r.value.items) S.goals=r.value.items;
+        else if(key==="tasks"){ S.tasks.week=r.value.week||[]; S.tasks.month=r.value.month||[]; }
+        else return;
+        META[key]=r.updated; changed=true;
+      } else if(localHas(key) && (!r || (META[key]||0)>r.updated)){
+        META[key]=META[key]||Date.now(); pushState(key);
+      }
+    });
+    localSave(); if(changed){ renderAll(); toast("Данные с другого устройства получены"); }
+    setSync(true,"синхронизировано");
+  }).catch(function(){ setSync(false,"локально"); });
 }
 
 function boot(){
@@ -1043,7 +1096,7 @@ function loadSecretary(){
     });
 }
 setInterval(function(){ if(SRC.url && !document.hidden) loadSecretary(); }, 5*60*1000);
-document.addEventListener("visibilitychange",function(){ if(!document.hidden && SRC.url) loadSecretary(); });
+document.addEventListener("visibilitychange",function(){ if(!document.hidden && SRC.url){ loadSecretary(); pullState(); } });
 
 /* ---------------- источник данных ---------------- */
 function srcMsg(t,bad){ var e=$("#srcMsg"); if(e){ e.textContent=t; e.style.color=bad?"#FF6B9A":"var(--ink3)"; } }
@@ -1119,7 +1172,7 @@ if($("#srcSave")){
   $("#srcSave").addEventListener("click",function(){
     SRC.url=$("#srcUrl").value.trim(); SRC.key=$("#srcKey").value.trim();
     try{ localStorage.setItem("shumm-src",JSON.stringify(SRC)); }catch(e){}
-    loadWork(); loadSecretary();
+    loadWork(); loadSecretary(); pullState();
   });
   $("#srcPlan").value=SRC.plan||"";
   $("#srcPlanSave").addEventListener("click",function(){
@@ -1136,43 +1189,97 @@ if($("#srcSave")){
   });
 }
 
-/* ---------------- agents via sample ---------------- */
-function ask(btn,out,build){
-  btn.addEventListener("click",function(){
-    if(!window.claude||!claude.use) return;
-    btn.disabled=true; var old=btn.textContent; btn.textContent="Думает…";
-    out.textContent="…";
-    claude.use("sample").then(function(sample){
-      if(!sample){ out.textContent="Агент недоступен в этом просмотре."; btn.disabled=false; btn.textContent=old; return; }
-      return sample(build(),{modelTier:"default", onText:function(p){ out.textContent=p.text; }}).then(function(r){
-        out.textContent=r.text; btn.disabled=false; btn.textContent=old;
-      });
-    }).catch(function(e){
-      out.textContent=(e&&e.code==="rate_limited")?"Слишком часто. Попробуйте через минуту.":"Не получилось получить ответ.";
-      btn.disabled=false; btn.textContent=old;
+/* ---------------- советники ---------------- */
+/* Три советника работают в любом случае: по правилам из ваших цифр прямо здесь.
+   Если в скрипте вписан ключ модели Claude, разбор делает модель. Внутри Claude
+   используется встроенный движок. */
+var РОЛИ={
+  rop:"Ты руководитель отдела продаж с пятнадцатилетним опытом в строительстве, отделке и ремонте квартир. Тебе дают цифры отдела за текущий месяц. Дай три коротких конкретных действия на сегодня, каждое одним предложением, без вступления и без общих слов. Пиши по-русски.",
+  fin:"Ты личный финансовый советник. Тебе дают доходы, расходы и копилку человека за текущий месяц. Дай три коротких конкретных совета, каждый одним предложением, без вступления. Если данных мало, скажи это одной строкой. Пиши по-русски.",
+  coach:"Ты личностный тренер с опытом больше пятнадцати лет, работаешь с руководителем отдела продаж. Тебе дают его цели и прогресс. Дай три коротких конкретных шага на эту неделю, каждый одним предложением, без вступления и без общих слов. Пиши по-русски."
+};
+function советДанные(kind){
+  var now=new Date(), day=now.getDate(), days=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  if(kind==="rop"){
+    return {демо:WORK.demo, конверсия:WORK.conversion.current, цель:WORK.conversion.goal, срок:WORK.conversion.deadline,
+      квалы:WORK.funnel.quals, замеры:WORK.funnel.measures, договоры:WORK.funnel.contracts,
+      план:WORK.plan.target, выполнено:WORK.plan.done, день:day, дней_в_месяце:days,
+      менеджеры:WORK.managers.map(function(m){ return {имя:m.name, побед:m.pct}; }), зависших:WORK.problems.length};
+  }
+  if(kind==="fin"){
+    var inc=monthly("in"), exp=monthly("out");
+    return {доход:inc.total, доход_по_источникам:inc.rows, расход:exp.total, расход_по_категориям:exp.rows,
+      на_руках:S.fin.cash||0, копилка:S.fin.savings||0, операций:S.fin.entries.length,
+      денежные_цели:S.goals.filter(function(g){ return g.money; }).map(function(g){ return {цель:g.name, нужно:g.target}; })};
+  }
+  return {цели:S.goals.map(function(g){ return {цель:g.name, прогресс:goalPct(g), текущее:g.money?(S.fin.savings||0):(g.current||0), нужно:g.target}; })};
+}
+function советПоПравилам(kind,d){
+  var out=[];
+  if(kind==="rop"){
+    if(d.демо) return "Цифры пока демонстрационные. Подключите источник в разделе «Работа», и разбор пойдёт по настоящим.";
+    var gap=(d.цель||80)-(d.конверсия||0);
+    out.push(gap>0
+      ? "До цели по конверсии не хватает "+gap+" п.п.: сегодня разберите с каждым менеджером его квалы без назначенного замера."
+      : "Конверсия "+d.конверсия+"% выше цели: держите темп и проверьте, что замер не ставится раньше согласия клиента.");
+    var slab=(d.менеджеры||[]).slice().sort(function(a,b){ return a.побед-b.побед; })[0];
+    if(slab) out.push("Слабое звено сейчас "+slab.имя+", "+slab.побед+"% побед: возьмите его сегодняшние звонки на разбор и созвонитесь на пятнадцать минут.");
+    if(d.зависших) out.push("Зависших сделок: "+d.зависших+". Пройдитесь по ним до обеда: касание или честный отказ, но не тишина.");
+    var pace=d.день/d.дней_в_месяце, done=d.план?d.выполнено/d.план:0;
+    if(d.план && done<pace-0.1){
+      var avg=d.договоры?d.выполнено/d.договоры:0, left=Math.max(1,d.дней_в_месяце-d.день);
+      var need=avg?Math.ceil((d.план-d.выполнено)/avg/left*10)/10:0;
+      out.push("План идёт медленнее календаря: "+Math.round(done*100)+"% при "+Math.round(pace*100)+"% месяца"+(need?", нужно около "+need+" договоров в день до конца месяца.":"."));
+    }
+    if(!d.зависших) out.push("Зависших сделок нет: спросите команду, что мешает ставить замер быстрее, и уберите одну помеху сегодня.");
+  } else if(kind==="fin"){
+    if(!d.операций) return "Операций за месяц пока нет. Внесите хотя бы расходы за сегодня, тогда будет что советовать.";
+    var top=(d.расход_по_категориям||[])[0];
+    if(top && d.расход) out.push("Крупнейшая статья расходов «"+top[0]+"», "+Math.round(top[1]/d.расход*100)+"% всех трат, "+rub(top[1])+": именно её держите под контролем.");
+    var diff=(d.доход||0)-(d.расход||0);
+    out.push(diff<0
+      ? "Расходы обгоняют доходы на "+rub(-diff)+": в этом месяце отложить не выйдет, режьте статью выше."
+      : "От дохода осталось "+rub(diff)+": переведите в копилку хотя бы половину, пока не разошлись.");
+    var goal=(d.денежные_цели||[])[0];
+    if(goal){ var rest=goal.нужно-(d.копилка||0); if(rest>0) out.push("До цели «"+goal.цель+"» осталось "+rub(rest)+(diff>0?", при таком остатке это примерно "+Math.ceil(rest/diff)+" мес.":"."));
+      else out.push("Цель «"+goal.цель+"» по деньгам закрыта: назначьте следующую."); }
+  } else {
+    var goals=(d.цели||[]).slice().sort(function(a,b){ return a.прогресс-b.прогресс; });
+    if(!goals.length) return "Целей нет. Запишите одну на этот месяц в разделе «Развитие», и тренер найдёт, что сказать.";
+    goals.slice(0,3).forEach(function(g){
+      if(g.прогресс<=0) out.push("«"+g.цель+"» стоит на нуле: назначьте первый шаг на конкретный день этой недели.");
+      else if(g.прогресс<50) out.push("«"+g.цель+"», "+g.прогресс+"%: добавьте один заход на этой неделе, до половины ближе, чем кажется.");
+      else if(g.прогресс<100) out.push("«"+g.цель+"», "+g.прогресс+"%: закройте её на этой неделе, чтобы освободить голову.");
+      else out.push("«"+g.цель+"» выполнена: поставьте следующую планку, пока есть разгон.");
     });
+  }
+  return out.slice(0,3).join("\n");
+}
+function ask(btn,out,kind){
+  btn.addEventListener("click",function(){
+    btn.disabled=true; var old=btn.textContent; btn.textContent="Думает…"; out.textContent="…";
+    var d=советДанные(kind);
+    function finish(t){ out.textContent=t; btn.disabled=false; btn.textContent=old; }
+    if(window.claude && claude.use){
+      claude.use("sample").then(function(sample){
+        if(!sample) return finish(советПоПравилам(kind,d));
+        return sample(РОЛИ[kind]+"\n\nЦифры: "+JSON.stringify(d),{modelTier:"default", onText:function(p){ out.textContent=p.text; }})
+          .then(function(r){ finish(r.text); });
+      }).catch(function(){ finish(советПоПравилам(kind,d)); });
+      return;
+    }
+    if(SRC.url){
+      секретарьЗапрос("do=advice&kind="+kind+"&data="+encodeURIComponent(JSON.stringify(d)))
+        .then(function(r){ finish(r && r.source==="claude" && r.text ? r.text : советПоПравилам(kind,d)); })
+        .catch(function(){ finish(советПоПравилам(kind,d)); });
+      return;
+    }
+    finish(советПоПравилам(kind,d));
   });
 }
-ask($("#ropBtn"),$("#ropText"),function(){
-  return "Ты руководитель отдела продаж с 15-летним опытом в строительстве, отделке и ремонте. "+
-  "Вот демонстрационные цифры отдела: конверсия квала в замер 68% при цели 80% к 18 ноября, за месяц 84 квала, 57 замеров, 19 договоров, "+
-  "план 17 000 000 выполнен на 62%. Менеджеры: А.С. 92%, И.М. 74%, Д.В. 61%, Р.К. 38%. "+
-  "Дай 3 коротких конкретных действия на сегодня, по одному предложению каждое, без вступления, на русском. "+
-  "Начни ответ с пометки, что данные демонстрационные.";
-});
-ask($("#finBtn"),$("#finText"),function(){
-  var inc=monthly("in"), exp=monthly("out");
-  return "Ты финансовый советник. Данные пользователя за текущий месяц. Доход: "+inc.total+" руб по источникам "+
-    JSON.stringify(inc.rows)+". Расход: "+exp.total+" руб по категориям "+JSON.stringify(exp.rows)+
-    ". Общая сумма на руках: "+S.fin.cash+" руб, в копилке "+S.fin.savings+" руб. "+
-    "Цель накопления: 2 000 000 руб на автомобиль. Дай 3 коротких конкретных совета, по одному предложению, без вступления, на русском. "+
-    "Если данных мало, так и скажи одной строкой.";
-});
-ask($("#coachBtn"),$("#coachText"),function(){
-  return "Ты личностный тренер с опытом больше 15 лет, работаешь с руководителем отдела продаж. "+
-    "Его цели: "+JSON.stringify(S.goals.map(function(g){ return {цель:g.name, прогресс:goalPct(g)+"%"}; }))+". "+
-    "Дай 3 коротких конкретных шага на эту неделю, по одному предложению, без вступления и без общих слов, на русском.";
-});
+ask($("#ropBtn"),$("#ropText"),"rop");
+ask($("#finBtn"),$("#finText"),"fin");
+ask($("#coachBtn"),$("#coachText"),"coach");
 
 /* ---------------- погода ---------------- */
 var ПОГОДА_КОДЫ={0:"ясно",1:"малооблачно",2:"переменная облачность",3:"пасмурно",45:"туман",48:"изморозь",
@@ -1255,6 +1362,6 @@ drawWork(); загрузитьПогоду();
 syncType(); boot();
 загрузитьСохранённое();
 if(SRC.url) loadWork();
-loadSecretary();
+loadSecretary(); pullState();
 })();
 </script>
