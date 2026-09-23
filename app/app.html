@@ -127,6 +127,12 @@ body{margin:0; color:var(--ink); font-family:"Manrope",system-ui,sans-serif; fon
 @media(max-width:620px){ .todaynum{border-left:0; border-top:1px solid var(--hair); padding:16px 0 0; align-items:flex-start; text-align:left;} }
 .todaynum .big{font-size:clamp(44px,7vw,68px); background:linear-gradient(180deg,#fff,var(--cy)); -webkit-background-clip:text; background-clip:text; color:transparent;}
 .switch{display:inline-flex; border:1px solid var(--hair); border-radius:999px; padding:3px;}
+.datepick{display:inline-flex; align-items:center; margin-left:8px;}
+.datepick input[type=date]{font-family:var(--disp); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--cy);
+  background:rgba(201,167,255,.08); border:1px solid rgba(201,167,255,.35); border-radius:999px; padding:7px 12px; min-width:0; width:auto; cursor:pointer; color-scheme:dark;}
+.datepick input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.8) sepia(1) hue-rotate(220deg); cursor:pointer;}
+.datepick.today input[type=date]{color:var(--ink3); background:transparent; border-color:var(--hair);}
+.mh{flex-wrap:wrap; row-gap:8px;}
 .switch button{font-family:var(--disp); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
   background:none; border:0; color:var(--ink3); padding:6px 12px; cursor:pointer; border-radius:999px;}
 .switch button[aria-pressed="true"]{color:var(--void); background:var(--cy);}
@@ -296,9 +302,10 @@ select option{background:#0E0C15;}
     <!-- ================= HOME ================= -->
     <div class="grid view" id="v-home">
       <section class="mod hot c8">
-        <div class="mh"><h2>Дела на сегодня</h2><span class="sp"></span>
+        <div class="mh"><h2 id="h-title">Дела на сегодня</h2><span class="sp"></span>
           <div class="switch" role="group" aria-label="Период"><button type="button" data-p="day" aria-pressed="true">День</button>
           <button type="button" data-p="week" aria-pressed="false">Неделя</button><button type="button" data-p="month" aria-pressed="false">Месяц</button></div>
+          <label class="datepick" title="Выбрать день"><input type="date" id="h-date" aria-label="День" data-date></label>
         </div>
         <div class="today">
           <div class="spine"><i class="fill" id="h-fill" style="height:0"></i><div id="h-tasks"></div></div>
@@ -500,9 +507,10 @@ select option{background:#0E0C15;}
     <!-- ================= TODO ================= -->
     <div class="grid view" id="v-todo" hidden>
       <section class="mod hot c8">
-        <div class="mh"><h3>Список дел</h3><span class="sp"></span>
+        <div class="mh"><h3 id="t-title">Список дел</h3><span class="sp"></span>
           <div class="switch" role="group" aria-label="Период"><button type="button" data-p="day" aria-pressed="true">День</button>
           <button type="button" data-p="week" aria-pressed="false">Неделя</button><button type="button" data-p="month" aria-pressed="false">Месяц</button></div>
+          <label class="datepick" title="Выбрать день"><input type="date" id="t-date" aria-label="День" data-date></label>
         </div>
         <div class="today">
           <div class="spine"><i class="fill" id="t-fill" style="height:0"></i><div id="t-tasks"></div></div>
@@ -559,7 +567,7 @@ var esc=function(t){ return String(t).replace(/[&<>"]/g,function(c){ return {"&"
 var S={
   fin:{cash:0, savings:0, cats:{out:["дом","бензин","машина","ежемесячные платежи","подписки","хрень","Юля","ВП","табак","обед","продукты","инструменты","дача","одежда","транспорт"],
        "in":["Нейротемы","Капиталстрой","Тихие стены","Долг","Прочее"]}, entries:[]},
-  tasks:{day:[],week:[],month:[]},
+  tasks:{days:{},week:[],month:[]},
   goals:[{id:"g1",name:"Конверсия в замер",target:81,current:68,money:false},
          {id:"g2",name:"Спорт, тренировок в месяц",target:3,current:0,money:false},
          {id:"g3",name:"Infiniti QX70",target:2000000,current:0,money:true}]
@@ -585,7 +593,23 @@ try{ var sv=JSON.parse(localStorage.getItem("shumm-src")||"{}"); SRC.url=sv.url|
 function localLoad(){
   try{ var r=localStorage.getItem("shumm"); if(r){ var o=JSON.parse(r);
     if(o.fin) S.fin=o.fin; if(o.tasks) S.tasks=o.tasks; if(o.goals) S.goals=o.goals; } }catch(e){}
+  normTasks();
 }
+/* Дни хранятся картой «дата → список». Старый плоский список дня переезжает в сегодня. */
+function dateKey(d){ d=d||new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+function todayKey(){ return dateKey(new Date()); }
+function normTasks(){
+  if(!S.tasks || typeof S.tasks!=="object") S.tasks={days:{},week:[],month:[]};
+  if(!S.tasks.days || typeof S.tasks.days!=="object") S.tasks.days={};
+  if(Array.isArray(S.tasks.day)){ var t=todayKey(); S.tasks.days[t]=(S.tasks.days[t]||[]).concat(S.tasks.day); delete S.tasks.day; }
+  S.tasks.week=S.tasks.week||[]; S.tasks.month=S.tasks.month||[];
+  // Старше месяца не храним: список только растёт, а смотреть туда незачем.
+  var порог=new Date(); порог.setDate(порог.getDate()-31); var пк=dateKey(порог);
+  Object.keys(S.tasks.days).forEach(function(k){ if(k<пк) delete S.tasks.days[k]; });
+}
+var selDate=todayKey();
+function dayList(key){ key=key||selDate; return S.tasks.days[key]=S.tasks.days[key]||[]; }
+function listFor(){ return period==="day" ? dayList() : (S.tasks[period]=S.tasks[period]||[]); }
 function localSave(){ try{ localStorage.setItem("shumm",JSON.stringify({fin:S.fin,tasks:S.tasks,goals:S.goals})); localStorage.setItem("shumm-meta",JSON.stringify(META)); }catch(e){} }
 
 /* Время последней записи каждого раздела. По нему устройства решают, чья копия свежее. */
@@ -667,7 +691,7 @@ function boot(){
     refs.fin=db.doc("state/finance"); refs.tasks=db.doc("state/tasks"); refs.goals=db.doc("state/goals");
     setSync(true,"синхронизировано");
     refs.fin.onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(d&&d.cats){ S.fin=d; renderMoney(); renderHome(); } } }, err);
-    refs.tasks.onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(d){ S.tasks={day:d.day||[],week:d.week||[],month:d.month||[]}; renderTasks(); } } }, err);
+    refs.tasks.onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(d){ S.tasks={days:d.days||{},day:d.day,week:d.week||[],month:d.month||[]}; normTasks(); renderTasks(); } } }, err);
     refs.goals.onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(d&&d.items){ S.goals=d.items; renderGoals(); } } }, err);
     function err(){ setSync(false,"локально"); }
   }).catch(function(){ setSync(false,"локально"); });
@@ -705,6 +729,21 @@ $$(".switch button").forEach(function(b){
     renderTasks();
   });
 });
+/* Выбор дня: поле с календариком. Сменили день — показываем его список и спрашиваем секретаря про этот день. */
+$$("[data-date]").forEach(function(inp){
+  inp.value=selDate;
+  inp.addEventListener("change",function(){
+    if(!inp.value) inp.value=todayKey();
+    selDate=inp.value; period="day";
+    $$(".switch button").forEach(function(x){ x.setAttribute("aria-pressed", x.dataset.p==="day"); });
+    renderTasks(); loadSecretary();
+  });
+});
+function dayName(key){
+  var t=new Date(); var d0=todayKey(), d1=dateKey(new Date(t.getFullYear(),t.getMonth(),t.getDate()+1)), dm=dateKey(new Date(t.getFullYear(),t.getMonth(),t.getDate()-1));
+  if(key===d0) return "сегодня"; if(key===d1) return "завтра"; if(key===dm) return "вчера";
+  var p=key.split("-"); return p[2]+"."+p[1];
+}
 function taskHTML(t,i,pre){
   var id="tk-"+pre+"-"+i+"-"+t.id;
   return '<div class="tk'+(t.done?" done":"")+'"><input type="checkbox" data-i="'+i+'"'+(t.done?" checked":"")+
@@ -713,42 +752,56 @@ function taskHTML(t,i,pre){
     '<button class="del" data-del="'+i+'" title="Удалить" aria-label="Удалить дело">×</button></div>';
 }
 function renderTasks(){
-  var list=S.tasks[period]||[];
+  var list=listFor();
   var done=list.filter(function(t){ return t.done; }).length;
   var pct=list.length?Math.round(done/list.length*100):0;
+  var имя=dayName(selDate), сегодня=selDate===todayKey();
   ["h","t"].forEach(function(p){
     var box=$("#"+p+"-tasks"); if(!box) return;
     box.innerHTML = list.length
       ? list.map(function(t,i){ return taskHTML(t,i,p); }).join("")
-      : '<p class="empty">Дел пока нет. Добавьте вручную или дождитесь секретаря в 9:05.</p>';
-
+      : '<p class="empty">'+(period==="day"?"Дел на "+имя+" пока нет. Добавьте вручную или напишите секретарю в Telegram.":"Список пуст. Добавьте первое дело ниже.")+'</p>';
     $("#"+p+"-fill").style.height=pct+"%";
     $("#"+p+"-pct").textContent=pct+"%";
     $("#"+p+"-sub").textContent=done+" из "+list.length;
+    var inp=$("#"+p+"-date"); if(inp){ inp.value=selDate; inp.parentNode.classList.toggle("today", сегодня); inp.parentNode.hidden = period!=="day"; }
   });
+  var ht=$("#h-title"); if(ht) ht.textContent = period==="day" ? "Дела на "+имя : (period==="week"?"Дела на неделю":"Дела на месяц");
+  var tt=$("#t-title"); if(tt) tt.textContent = period==="day" ? "Список дел на "+имя : (period==="week"?"Список дел на неделю":"Список дел на месяц");
 }
 ["h-tasks","t-tasks"].forEach(function(id){
   var box=document.getElementById(id);
   box.addEventListener("change",function(e){
     var i=e.target.dataset.i; if(i===undefined) return;
-    var дело=S.tasks[period][i];
+    var list=listFor(), дело=list[i]; if(!дело) return;
     дело.done=e.target.checked; save("tasks"); renderTasks();
-    // Дела от секретаря живут ещё и в скрипте: отметку возвращаем туда,
-    // иначе в Telegram список останется неотмеченным.
-    if(дело.tg && SRC.url) отметитьВСкрипте(дело.id, дело.done);
+    // Дела дня живут ещё и в скрипте: отметку возвращаем туда, иначе в Telegram
+    // и календаре дело останется открытым.
+    if(period==="day" && дело.tg && SRC.url) отметитьВСкрипте(дело.id, дело.done, selDate);
   });
   box.addEventListener("click",function(e){
     var d=e.target.dataset.del; if(d===undefined) return;
-    var убранное=S.tasks[period][+d];
+    var list=listFor(), убранное=list[+d];
     if(убранное && убранное.tg){ secDeleted[убранное.id]=1; try{ localStorage.setItem("shumm-sec-del",JSON.stringify(secDeleted)); }catch(err){} }
-    S.tasks[period].splice(+d,1); save("tasks"); renderTasks();
+    list.splice(+d,1); save("tasks"); renderTasks();
   });
 });
 function addTask(){
   var n=$("#tName"), w=$("#tWhen");
   if(!n.value.trim()) return;
-  S.tasks[period].push({id:uid(), text:n.value.trim(), when:w.value.trim(), done:false});
+  var дело={id:uid(), text:n.value.trim(), when:w.value.trim(), done:false};
+  var list=listFor(); list.push(дело);
   n.value=""; w.value=""; save("tasks"); renderTasks(); n.focus();
+  // Дело дня отдаём секретарю: тогда оно попадёт в Telegram, календарь и на другие устройства.
+  if(period==="day" && SRC.url){
+    var день=selDate;
+    секретарьЗапрос("do=task-add&date="+день+"&text="+encodeURIComponent(дело.text)+"&when="+encodeURIComponent(дело.when))
+      .then(function(d){
+        if(!d || d.error || !d.tasks) return;
+        var l=dayList(день), k=l.indexOf(дело); if(k>-1) l.splice(k,1);
+        mergeSecretary(d, true);
+      }).catch(function(){ /* осталось на устройстве, уйдёт при следующей связи вручную */ });
+  }
 }
 $("#tAdd").addEventListener("click",addTask);
 $("#tName").addEventListener("keydown",function(e){ if(e.key==="Enter") addTask(); });
@@ -1084,17 +1137,18 @@ function secState(text, on){
 }
 var secDeleted={};
 try{ secDeleted=JSON.parse(localStorage.getItem("shumm-sec-del")||"{}"); }catch(e){}
-function mergeSecretary(d){
+function mergeSecretary(d, тихо){
   if(!d || d.error || !d.tasks) throw new Error(d && d.error ? d.error : "пустой ответ");
-  var list=S.tasks.day, have={}, added=0;
+  var день=/^\d{4}-\d{2}-\d{2}$/.test(d.date||"") ? d.date : todayKey();
+  var list=dayList(день), have={}, added=0;
   list.forEach(function(t){ have[t.id]=true; });
   d.tasks.forEach(function(t){
     if(!t || !t.id || have[t.id] || secDeleted[t.id]) return;
     list.push({id:t.id, text:String(t.text||"").slice(0,200), when:String(t.when||""), done:!!t.done, tg:true, cal:!!t.cal});
     added++;
   });
-  if(added){ save("tasks"); renderTasks(); toast(added===1?"Секретарь принёс 1 дело":"Секретарь принёс дел: "+added); }
-  secState(d.tasks.length?("сегодня "+d.tasks.length):"подключён", true);
+  if(added || тихо){ save("tasks"); renderTasks(); if(added && !тихо) toast(added===1?"Секретарь принёс 1 дело":"Секретарь принёс дел: "+added); }
+  secState(день===todayKey() ? (d.tasks.length?("сегодня "+d.tasks.length):"подключён") : (dayName(день)+" "+d.tasks.length), true);
   var cb=$("#calBadge"), cd=$("#calDot"), cs=$("#calState");
   if(cb){ cb.textContent=d.calendar?"подключён":"не подключён"; }
   if(cd){ cd.classList.toggle("wait", !d.calendar); }
@@ -1114,13 +1168,13 @@ function секретарьЗапрос(параметры){
       });
     });
 }
-function отметитьВСкрипте(id, готово){
-  секретарьЗапрос("do=task-done&id="+encodeURIComponent(id)+"&value="+(готово?"1":"0"))
+function отметитьВСкрипте(id, готово, день){
+  секретарьЗапрос("do=task-done&date="+(день||todayKey())+"&id="+encodeURIComponent(id)+"&value="+(готово?"1":"0"))
     .catch(function(){ /* отметка уже стоит на устройстве, вернём при следующей связи */ });
 }
 function loadSecretary(){
   if(!SRC.url){ secState("ждёт источника", false); return; }
-  var base=srcAddr(); var addr=base+(base.indexOf("?")>-1?"&":"?")+"do=tasks";
+  var base=srcAddr(); var addr=base+(base.indexOf("?")>-1?"&":"?")+"do=tasks&date="+selDate;
   fetch(addr).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
     .then(mergeSecretary)
     .catch(function(){
