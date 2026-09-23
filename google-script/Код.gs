@@ -12,7 +12,7 @@
  */
 
 // Номер версии. Чтобы убедиться, что в Google встала именно эта, найдите строку через Ctrl+F.
-var ВЕРСИЯ = 'Shumm v11 · секретарь 22.09';
+var ВЕРСИЯ = 'Shumm v12 · секретарь 23.09';
 
 var НАСТРОЙКИ = {
   // Токен AmoCRM. Вставьте между кавычками.
@@ -101,7 +101,7 @@ function doGet(e) {
   if (параметры.key !== НАСТРОЙКИ.ключ) {
     ответ = { error: 'Неверный ключ' };
   } else if (параметры.do === 'version') {
-    ответ = { version: ВЕРСИЯ, secretary: !!PropertiesService.getScriptProperties().getProperty('вебхук') };
+    ответ = { version: ВЕРСИЯ, secretary: естьТриггер_('секретарьОпрос') };
   } else if (параметры.do === 'tasks') {
     // Дела от секретаря: лёгкий запрос, AmoCRM не трогаем.
     ответ = { version: ВЕРСИЯ, date: сегодняКлюч_(), tasks: делаЗаДень_(сегодняКлюч_()) };
@@ -655,8 +655,7 @@ function найтиЧат_() {
   var тело = ответ.getContentText();
   Logger.log('Спросил у Telegram новые сообщения, ответ ' + код);
   if (код === 409) {
-    Logger.log('Сообщения забирает секретарь (вебхук включён). Напишите боту любое слово: ' +
-      'чат запомнится сам при первом же сообщении.');
+    Logger.log('У Telegram ещё задан вебхук, он мешает. Запустите подключитьСекретаря, он его снимет.');
     return '';
   }
   if (код !== 200) {
@@ -758,8 +757,10 @@ function написать_(чат, текст) {
  * а любой ваш ответ в чате разбирает по строкам и кладёт в список,
  * который приложение забирает по адресу с параметром do=tasks.
  *
- * Сообщения приходят в скрипт напрямую (Telegram сам стучится по адресу
- * веб-приложения), поэтому ответ секретаря приходит сразу, а не по расписанию.
+ * Сообщения секретарь забирает у Telegram сам, раз в минуту. Стучаться в скрипт
+ * напрямую Telegram не может: Google отвечает ему переадресацией (302), а Telegram
+ * переадресации не принимает и копит очередь. Поэтому ответ бота приходит в
+ * течение минуты, а не мгновенно.
  */
 
 function сегодняКлюч_() {
@@ -803,7 +804,10 @@ function разобратьДела_(текст) {
   }).filter(Boolean);
 }
 
-/** Сюда Telegram приносит каждое сообщение боту. */
+/**
+ * Запасной вход: если когда-нибудь Telegram научится принимать ответ Google,
+ * сообщения можно будет носить и сюда. Сейчас рабочий путь — секретарьОпрос.
+ */
 function doPost(e) {
   try {
     var обновление = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -866,7 +870,7 @@ function обработатьСообщение_(сообщение, номер)
   });
   сохранитьДела_(ключ, список);
   написать_(чат, 'Записал ' + склонение_(новые.length, 'дело', 'дела', 'дел') + ':\n' +
-    новые.map(строкаДела_).join('\n') + '\n\nВсего на сегодня: ' + список.length + '. Откройте Shumm, они уже там.');
+    новые.map(строкаДела_).join('\n') + '\n\nВсего на сегодня: ' + список.length + '. В Shumm появятся при следующем обновлении.');
 }
 
 function строкаДела_(д) { return '• ' + (д.when ? д.when + ' ' : '') + д.text; }
@@ -902,7 +906,8 @@ function состояниеВебхука_() {
     { muteHttpExceptions: true });
   var данные = {};
   try { данные = JSON.parse(ответ.getContentText()).result || {}; } catch (e) {}
-  Logger.log('Telegram носит сообщения на адрес: ' + (данные.url || 'НИКУДА (вебхук не задан)'));
+  Logger.log(данные.url ? ('ВНИМАНИЕ: у Telegram задан вебхук ' + данные.url + ', он мешает опросу. Запустите подключитьСекретаря.')
+                        : 'Вебхука нет, сообщения отдаются по запросу. Так и нужно.');
   Logger.log('Сообщений в очереди у Telegram: ' + (данные.pending_update_count || 0));
   if (данные.last_error_message) {
     Logger.log('Последняя ошибка Telegram (' + new Date((данные.last_error_date || 0) * 1000).toLocaleString('ru-RU') +
@@ -929,47 +934,81 @@ function секретарьУтром() {
   return 'Отправлено';
 }
 
+function естьТриггер_(имя) {
+  return ScriptApp.getProjectTriggers().some(function (т) { return т.getHandlerFunction() === имя; });
+}
+
+function убратьТриггер_(имя) {
+  ScriptApp.getProjectTriggers().forEach(function (т) {
+    if (т.getHandlerFunction() === имя) ScriptApp.deleteTrigger(т);
+  });
+}
+
 /**
- * Включает секретаря: говорит Telegram, по какому адресу приносить сообщения.
- * Запускать один раз после развёртывания веб-приложения. Повторный запуск не вредит.
+ * Раз в минуту забирает у Telegram новые сообщения и отдаёт их секретарю.
+ * Запускается по расписанию, которое ставит подключитьСекретаря.
+ */
+function секретарьОпрос() {
+  if (!НАСТРОЙКИ.telegramТокен || НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') === 0) return;
+  var замок = LockService.getScriptLock();
+  if (!замок.tryLock(5000)) return;   // предыдущий опрос ещё не закончился
+  try {
+    var хранилище = PropertiesService.getScriptProperties();
+    var смещение = Number(хранилище.getProperty('смещение') || 0);
+    var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен +
+      '/getUpdates?timeout=0&allowed_updates=%5B%22message%22%5D' + (смещение ? '&offset=' + смещение : ''),
+      { muteHttpExceptions: true });
+    if (ответ.getResponseCode() !== 200) {
+      Logger.log('Опрос Telegram не удался, ответ ' + ответ.getResponseCode() + ': ' + ответ.getContentText().slice(0, 200));
+      return;
+    }
+    var обновления = (JSON.parse(ответ.getContentText() || '{}').result) || [];
+    обновления.forEach(function (о) {
+      var сообщение = о.message || о.edited_message;
+      try { if (сообщение && сообщение.chat) обработатьСообщение_(сообщение, о.update_id); }
+      catch (e) { Logger.log('Секретарь не разобрал сообщение ' + о.update_id + ': ' + e); }
+      смещение = о.update_id + 1;
+    });
+    if (обновления.length) {
+      хранилище.setProperty('смещение', String(смещение));
+      Logger.log('Секретарь обработал сообщений: ' + обновления.length);
+    }
+  } finally {
+    замок.releaseLock();
+  }
+}
+
+/**
+ * Включает секретаря: снимает старый вебхук, чтобы Telegram снова отдавал
+ * сообщения по запросу, и ставит опрос раз в минуту. Повторный запуск не вредит.
  */
 function подключитьСекретаря() {
   if (!НАСТРОЙКИ.telegramТокен || НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') === 0) {
     Logger.log('Токен бота не вписан в настройки.');
     return 'Нет токена';
   }
-  var адрес = адресВебПриложения_();
-  if (!адрес) {
-    Logger.log('Веб-приложение ещё не развёрнуто: сначала «Начать развёртывание».');
-    return 'Нет адреса';
-  }
-  Logger.log('Адрес веб-приложения: ' + адрес);
-  if (!/\/exec$/.test(адрес)) {
-    Logger.log('Это не боевой адрес. Откройте приложение Shumm один раз, чтобы оно постучалось по адресу /exec, и запустите снова.');
-    return 'Не тот адрес';
-  }
-  var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/setWebhook', {
-    method: 'post',
-    payload: { url: адрес, allowed_updates: JSON.stringify(['message', 'edited_message']) },
-    muteHttpExceptions: true
+  // Старый вебхук вместе с его очередью: там лежат повторы одного и того же «тест».
+  var снятие = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/deleteWebhook', {
+    method: 'post', payload: { drop_pending_updates: 'true' }, muteHttpExceptions: true
   });
-  var тело = ответ.getContentText();
-  Logger.log('Telegram ответил ' + ответ.getResponseCode() + ': ' + тело.slice(0, 300));
-  if (ответ.getResponseCode() === 200) {
-    PropertiesService.getScriptProperties().setProperty('вебхук', адрес);
-    Logger.log('СЕКРЕТАРЬ ПОДКЛЮЧЁН. Напишите боту слово «тест»: он ответит, что записал одно дело.');
-    return 'Секретарь подключён';
-  }
-  Logger.log('Telegram отказал. Пришлите этот журнал целиком.');
-  return 'Telegram отказал';
+  Logger.log('Прямая доставка выключена, ответ Telegram ' + снятие.getResponseCode() + ': ' + снятие.getContentText().slice(0, 120));
+  PropertiesService.getScriptProperties().deleteProperty('вебхук');
+  PropertiesService.getScriptProperties().deleteProperty('смещение');
+
+  убратьТриггер_('секретарьОпрос');
+  ScriptApp.newTrigger('секретарьОпрос').timeBased().everyMinutes(1).create();
+  Logger.log('Опрос Telegram поставлен раз в минуту.');
+
+  var чат = найтиЧат_();
+  Logger.log(чат ? ('Чат известен: ' + чат) : 'Чат ещё не известен: найдётся по первому сообщению боту.');
+  Logger.log('СЕКРЕТАРЬ ПОДКЛЮЧЁН. Напишите боту слово «тест»: в течение минуты он ответит, что записал одно дело.');
+  return 'Секретарь подключён';
 }
 
-/** Выключает секретаря: Telegram перестаёт приносить сообщения, очередь снова доступна getUpdates. */
+/** Выключает секретаря: опрос останавливается, сообщения боту остаются без ответа. */
 function отключитьСекретаря() {
-  var ответ = UrlFetchApp.fetch('https://api.telegram.org/bot' + НАСТРОЙКИ.telegramТокен + '/deleteWebhook',
-    { method: 'post', muteHttpExceptions: true });
-  PropertiesService.getScriptProperties().deleteProperty('вебхук');
-  Logger.log('Секретарь отключён, ответ ' + ответ.getResponseCode());
+  убратьТриггер_('секретарьОпрос');
+  Logger.log('Секретарь отключён.');
 }
 
 /** Проверка секретаря без Telegram: разбирает пример и показывает, что получилось. */
@@ -977,8 +1016,7 @@ function проверкаСекретаря() {
   var пример = '1. 10:30 планёрка с отделом\n- позвонить по Мичуринской в 15:00\nсчёт за замеры';
   var дела = разобратьДела_(пример);
   дела.forEach(function (д) { Logger.log(строкаДела_(д)); });
-  var хук = PropertiesService.getScriptProperties().getProperty('вебхук');
-  Logger.log(хук ? ('Секретарь подключался к адресу ' + хук) : 'Секретарь ещё не подключён: запустите подключитьСекретаря.');
+  Logger.log(естьТриггер_('секретарьОпрос') ? 'Опрос Telegram включён, раз в минуту.' : 'Секретарь ещё не подключён: запустите подключитьСекретаря.');
   Logger.log('Записано на сегодня: ' + делаЗаДень_(сегодняКлюч_()).length);
   Logger.log('Известный чат: ' + (НАСТРОЙКИ.telegramЧат || PropertiesService.getScriptProperties().getProperty('чат') || 'ещё не найден'));
   if (НАСТРОЙКИ.telegramТокен && НАСТРОЙКИ.telegramТокен.indexOf('ВСТАВЬТЕ') !== 0) состояниеВебхука_();
@@ -988,7 +1026,9 @@ function проверкаСекретаря() {
 /* ====================== расписание ====================== */
 
 function включитьРасписание() {
+  var былОпрос = естьТриггер_('секретарьОпрос');
   ScriptApp.getProjectTriggers().forEach(function (т) { ScriptApp.deleteTrigger(т); });
+  if (былОпрос) ScriptApp.newTrigger('секретарьОпрос').timeBased().everyMinutes(1).create();
   ScriptApp.newTrigger('заполнитьОтчёт').timeBased().atHour(8).nearMinute(30).everyDays(1).create();
   ScriptApp.newTrigger('отправитьСводку').timeBased().atHour(9).nearMinute(0).everyDays(1).create();
   ScriptApp.newTrigger('секретарьУтром').timeBased().atHour(9).nearMinute(5).everyDays(1).create();
