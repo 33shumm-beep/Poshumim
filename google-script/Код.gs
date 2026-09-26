@@ -13,7 +13,7 @@
  */
 
 // Номер версии. Чтобы убедиться, что в Google встала именно эта, найдите строку через Ctrl+F.
-var ВЕРСИЯ = 'Shumm v20 · квалы по этапам, лист «Разбор дня» 26.09';
+var ВЕРСИЯ = 'Shumm v21 · квалы по этапам, повтор запросов 26.09';
 
 var НАСТРОЙКИ = {
   // Токен AmoCRM. Вставьте между кавычками.
@@ -149,12 +149,24 @@ function запросAmo_(путь, параметры) {
     for (var ключ in параметры) части.push(encodeURIComponent(ключ) + '=' + encodeURIComponent(параметры[ключ]));
     if (части.length) адрес += '?' + части.join('&');
   }
-  var ответ = UrlFetchApp.fetch(адрес, {
-    method: 'get',
-    headers: { Authorization: 'Bearer ' + НАСТРОЙКИ.токен },
-    muteHttpExceptions: true
-  });
-  var код = ответ.getResponseCode();
+  // Связь с AmoCRM иногда рвётся на секунду («Address unavailable»), поэтому до 4 попыток.
+  var ответ, код;
+  for (var попытка = 1; ; попытка++) {
+    try {
+      ответ = UrlFetchApp.fetch(адрес, {
+        method: 'get',
+        headers: { Authorization: 'Bearer ' + НАСТРОЙКИ.токен },
+        muteHttpExceptions: true
+      });
+      код = ответ.getResponseCode();
+      if ((код === 429 || код >= 500) && попытка < 4) throw new Error('AmoCRM ответил ' + код);
+      break;
+    } catch (е) {
+      if (попытка >= 4) throw е;
+      Logger.log('Нет связи с AmoCRM (' + е.message + '), повторяю через ' + (2 * попытка) + ' с.');
+      Utilities.sleep(2000 * попытка);
+    }
+  }
   if (код === 204) return {};
   if (код === 401) throw new Error('AmoCRM не принял токен. Проверьте, что он вставлен целиком.');
   if (код >= 400) throw new Error('AmoCRM ответил ошибкой ' + код + ' на запросе ' + путь);
