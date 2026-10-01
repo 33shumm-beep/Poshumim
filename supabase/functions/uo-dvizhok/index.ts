@@ -3,7 +3,10 @@
 //   plan    — сухой прогон: кого и чем коснулся бы движок сегодня, ничего не меняя;
 //   run     — утренний запуск: новые цепочки и очередные касания;
 //   otvety  — проверка ответов клиентов: ответивших возвращает в Основную воронку.
-// Отправка идёт только через Salesbot (id в uo_nastroyki.bot_id) и только при vklyucheno = 'да'.
+// Работает только при vklyucheno = 'да'. Режим rezhim:
+//   zadachi — текст кладётся в карточку, ответственному ставится задача «отправить» (не больше
+//             limit_na_menedzhera в день на человека); менеджер отправляет из чата сделки;
+//   bot     — текст отправляет Salesbot (id в bot_id).
 // Тексты берутся только со статусом «согласован». Имена и телефоны в Supabase не сохраняются.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -124,8 +127,16 @@ async function contactOf(lead: any) {
 async function morning(dry: boolean) {
   const s = await settings();
   const botId = Number(s.bot_id) || 0;
-  const sending = !dry && s.vklyucheno === "да" && botId > 0;
+  const mode = s.rezhim === "bot" ? "bot" : "zadachi";
+  const sending = !dry && s.vklyucheno === "да" && (mode === "zadachi" || botId > 0);
   const limit = Number(s.limit_v_den) || 50;
+  const perManager = Number(s.limit_na_menedzhera) || 10;
+  const load: Record<number, number> = {};
+  const busy = (uid: number) => (load[uid] ?? 0) >= perManager;
+  const take = (uid: number) => { load[uid] = (load[uid] ?? 0) + 1; };
+  // Срок задачи: сегодня до 18:00 по Москве, а если уже поздно — через три часа.
+  const msk18 = new Date(); msk18.setUTCHours(15, 0, 0, 0);
+  const deadline = Math.floor(Math.max(msk18.getTime(), Date.now() + 3 * 3600 * 1000) / 1000);
   const exclude = String(s.isklyuchit_otvetstvennyh ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   const tpl = await texts();
   const users = await usersMap();
@@ -165,10 +176,12 @@ async function morning(dry: boolean) {
     const sb = ORDER[segmentOf((b._embedded?.tags ?? []).map((t: any) => t.name))];
     return sa - sb || (b.price ?? 0) - (a.price ?? 0);
   });
-  const newOnes = fresh.slice(0, Math.max(0, limit - due.length));
-
-  const work = [...due, ...newOnes.map((lead) => ({ lead, st: null }))];
+  // Сначала очередные касания, потом новые цепочки — пока не наберётся дневной лимит.
+  const work = [...due, ...fresh.map((lead) => ({ lead, st: null }))];
   for (const { lead, st } of work) {
+    const total = Object.values(load).reduce((x, y) => x + y, 0);
+    if (total >= limit) break;
+    if (busy(lead.responsible_user_id)) { skip("у менеджера уже дневной лимит"); continue; }
     const tags = (lead._embedded?.tags ?? []).map((t: any) => t.name);
     const segment = st?.segment ?? segmentOf(tags);
     const prichina = st?.prichina ?? PRICHINA[lead.status_id];
@@ -177,13 +190,14 @@ async function morning(dry: boolean) {
 
     // «Дорого» в сегментах A и B: сначала звонок менеджера, сообщение — на следующий день.
     if (!st && prichina === "dorogo" && (segment === "A" || segment === "B")) {
+      take(lead.responsible_user_id);
       report.задач_на_звонок++;
       report.новых_цепочек++;
       if (!dry) {
         await amo("POST", "tasks", [{
           entity_id: lead.id, entity_type: "leads", responsible_user_id: lead.responsible_user_id,
           text: "Возврат из «Условного отказа»: позвонить клиенту. Если не дозвонитесь, завтра ему автоматически уйдёт сообщение.",
-          complete_till: Math.floor(now / 1000) + 8 * 3600,
+          complete_till: deadline,
         }]);
         await db.from("uo_sostoyanie").insert({ lead_id: lead.id, prichina, segment, kasanie: 0, sleduyushee_at: new Date(now + 20 * 3600 * 1000).toISOString() });
         await log(lead.id, "задача на звонок", { segment, prichina });
@@ -206,6 +220,7 @@ async function morning(dry: boolean) {
     if (report.примеры.length < 3) report.примеры.push({ сделка: lead.id, сегмент: segment, причина: prichina, касание: next, текст: message.replace(clientName(contact.name) || "\u0000", "{имя}") });
     if (!st) report.новых_цепочек++;
 
+    take(lead.responsible_user_id);
     if (!sending) { skip(dry ? "сухой прогон" : "отправка выключена"); continue; }
 
     await amo("PATCH", `leads/${lead.id}`, {
@@ -215,8 +230,16 @@ async function morning(dry: boolean) {
         { field_id: FIELD_N, values: [{ value: next }] },
       ],
     });
-    await amo("POST", "v2/salesbot/run", [{ bot_id: botId, entity_id: lead.id, entity_type: 2 }]);
-    await amo("POST", `leads/${lead.id}/notes`, [{ note_type: "common", params: { text: `Возврат из «Условного отказа»: отправлено сообщение ${next} из 3.` } }]);
+    if (mode === "bot") {
+      await amo("POST", "v2/salesbot/run", [{ bot_id: botId, entity_id: lead.id, entity_type: 2 }]);
+    } else {
+      await amo("POST", "tasks", [{
+        entity_id: lead.id, entity_type: "leads", responsible_user_id: lead.responsible_user_id,
+        text: `Возврат из «Условного отказа», сообщение ${next} из 3. Отправьте клиенту текст из поля «Текст возврата» через чат этой сделки (WhatsApp 79606602200), не с личного телефона — так система увидит ответ.`,
+        complete_till: deadline,
+      }]);
+    }
+    await amo("POST", `leads/${lead.id}/notes`, [{ note_type: "common", params: { text: `Возврат из «Условного отказа», сообщение ${next} из 3:\n\n${message}` } }]);
     const delayDays = tpl[`${prichina}:${next + 1}`]?.cherez_dney ?? 0;
     await db.from("uo_sostoyanie").upsert({
       lead_id: lead.id, prichina, segment, kasanie: next,
@@ -227,7 +250,7 @@ async function morning(dry: boolean) {
     await log(lead.id, `отправлено касание ${next}`, { segment, prichina });
     report.отправлено++;
   }
-  return { режим: dry ? "сухой прогон" : sending ? "отправка" : "отправка выключена", кандидатов_всего: fresh.length + due.length, ...report };
+  return { режим: dry ? "сухой прогон" : sending ? (mode === "bot" ? "отправка ботом" : "задачи менеджерам") : "отправка выключена", кандидатов_всего: fresh.length + due.length, ...report };
 }
 
 // Ответы клиентов: входящее сообщение по сделке из цепочки — сделка уходит в Основную воронку.
