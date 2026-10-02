@@ -27,11 +27,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function amo(method: string, path: string, body?: unknown): Promise<any> {
   const url = `https://${DOMAIN}.amocrm.ru/api/${path.startsWith("v2/") ? path : "v4/" + path}`;
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      // Связь с AmoCRM иногда обрывается на секунду: повторяем до четырёх раз.
+      if (attempt < 4) { await sleep(2000 * attempt); continue; }
+      throw e;
+    }
     if ((res.status === 429 || res.status >= 500) && attempt < 4) { await sleep(1500 * attempt); continue; }
     await sleep(160);
     if (res.status === 204) return {};
@@ -142,6 +149,16 @@ async function morning(dry: boolean) {
   const users = await usersMap();
   const leads = await leadsInUO();
   const byId = new Map(leads.map((l) => [l.id, l]));
+
+  // Повторный запуск в тот же день учитывает уже поставленные сегодня задачи.
+  const msk = new Date(Date.now() + 3 * 3600 * 1000);
+  const mskMidnight = new Date(Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate()) - 3 * 3600 * 1000);
+  const { data: today } = await db.from("uo_zhurnal").select("lead_id, deystvie").gte("at", mskMidnight.toISOString());
+  for (const r of today ?? []) {
+    if (!/^(задача на звонок|отправлено касание)/.test(String(r.deystvie))) continue;
+    const l = byId.get(Number(r.lead_id));
+    if (l) take(l.responsible_user_id);
+  }
 
   const { data: stateRows } = await db.from("uo_sostoyanie").select("*");
   const state = new Map((stateRows ?? []).map((r: any) => [Number(r.lead_id), r]));
