@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Отчёт за день</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#fff; --text:#16181d; --muted:#6b7280; --line:#e3e5e9;
+    --accent:#1f7a4d; --accent-text:#fff; --chip:#eef0f3; --err:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#111317; --card:#1b1e24; --text:#eef0f3; --muted:#9aa1ac; --line:#2c3038;
+      --accent:#2f9e66; --chip:#252932; --err:#f97066; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  main{max-width:460px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom));}
+  h1{font-size:22px;margin:4px 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .label{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .names{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .names button{border:1px solid var(--line);background:var(--chip);color:var(--text);
+    border-radius:10px;padding:12px 4px;font-size:16px}
+  .names button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+  input[type=date],input[inputmode]{width:100%;font-size:17px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);color:var(--text)}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .step{display:flex;align-items:center;gap:6px}
+  .step button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--chip);
+    color:var(--text);font-size:22px;line-height:1}
+  .step output{min-width:30px;text-align:center;font-size:20px;font-weight:600}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .main-btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-text);
+    font-size:17px;font-weight:600}
+  .main-btn:disabled{opacity:.5}
+  .err{color:var(--err);margin:10px 0 0;font-size:15px}
+  pre{white-space:pre-wrap;font:15px/1.45 inherit;margin:0 0 12px;background:var(--chip);padding:12px;border-radius:10px}
+  .ok{font-weight:600;margin:0 0 10px}
+  .link{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:15px;margin-top:12px;width:100%}
+</style>
+</head>
+<body>
+<main>
+  <h1>Отчёт за день</h1>
+
+  <section id="forma">
+    <div class="card">
+      <div class="label">Кто отправляет</div>
+      <div class="names" id="names"></div>
+    </div>
+
+    <div class="card">
+      <div class="label">За какой день</div>
+      <input type="date" id="den">
+    </div>
+
+    <div class="card" id="schetchiki"></div>
+
+    <div class="card">
+      <div class="label">Сумма заключённых договоров с начала месяца, ₽</div>
+      <input inputmode="numeric" id="summa" autocomplete="off" placeholder="0">
+      <div class="hint">Подставлена прошлая сумма. Меняйте, только если сегодня был договор.</div>
+    </div>
+
+    <button class="main-btn" id="send">Отправить</button>
+    <p class="err" id="err" hidden></p>
+  </section>
+
+  <section id="gotovo" hidden>
+    <div class="card">
+      <p class="ok">Отчёт сохранён ✅</p>
+      <pre id="tekst"></pre>
+      <button class="main-btn" id="copy">Скопировать для чата</button>
+    </div>
+    <button class="link" id="snova">Исправить отчёт</button>
+  </section>
+</main>
+
+<script>
+(function () {
+  var API = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/forma-otchet";
+  var PLAN = 5666666;
+  var KEY = (location.hash.match(/k=([0-9a-f]+)/) || [])[1] || "";
+  var NAMES = ["Иван", "Максим", "Сергей"];
+  var FIELDS = [
+    ["zamery", "Замеров проведено"],
+    ["pokazy", "Показов проведено"],
+    ["smety", "Смет подготовлено"],
+    ["vstrechi", "Встреч в офисе проведено"],
+    ["dogovory", "Договоров заключено"]
+  ];
+  var vals = {};
+  var who = "";
+  var $ = function (id) { return document.getElementById(id); };
+
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+
+  function today() {
+    var d = new Date(Date.now() + 3 * 3600 * 1000); // Москва
+    return d.toISOString().slice(0, 10);
+  }
+  function fmt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function num(s) { return Number(String(s).replace(/[^\d]/g, "")) || 0; }
+
+  // Имена
+  NAMES.forEach(function (n) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = n; b.setAttribute("aria-pressed", "false");
+    b.onclick = function () { pick(n); };
+    $("names").appendChild(b);
+  });
+  function pick(n) {
+    who = n; store("menedzher", n);
+    Array.prototype.forEach.call($("names").children, function (b) {
+      b.setAttribute("aria-pressed", String(b.textContent === n));
+    });
+    loadSum();
+  }
+
+  // Счётчики
+  FIELDS.forEach(function (f) {
+    vals[f[0]] = 0;
+    var row = document.createElement("div"); row.className = "row";
+    row.innerHTML = '<span>' + f[1] + '</span><span class="step">' +
+      '<button type="button" aria-label="меньше">−</button><output>0</output>' +
+      '<button type="button" aria-label="больше">+</button></span>';
+    var bt = row.querySelectorAll("button"), out = row.querySelector("output");
+    bt[0].onclick = function () { vals[f[0]] = Math.max(0, vals[f[0]] - 1); out.textContent = vals[f[0]]; };
+    bt[1].onclick = function () { vals[f[0]] = Math.min(50, vals[f[0]] + 1); out.textContent = vals[f[0]]; };
+    $("schetchiki").appendChild(row);
+  });
+
+  $("den").value = today();
+  $("den").onchange = loadSum;
+  $("summa").oninput = function () { var n = num(this.value); this.value = n ? fmt(n).replace(/,/g, " ") : ""; };
+
+  function call(body) {
+    body.k = KEY;
+    return fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Ошибка"); return j; }); });
+  }
+
+  function loadSum() {
+    if (!who || !$("den").value) return;
+    call({ action: "proshloe", menedzher: who, den: $("den").value }).then(function (j) {
+      var n = Number(j.summa_mes) || 0;
+      $("summa").value = n ? fmt(n).replace(/,/g, " ") : "";
+    }).catch(function () {});
+  }
+
+  function showErr(t) { $("err").textContent = t; $("err").hidden = !t; }
+
+  $("send").onclick = function () {
+    showErr("");
+    if (!KEY) return showErr("В ссылке нет ключа. Откройте ссылку из закреплённого сообщения.");
+    if (!who) return showErr("Нажмите своё имя вверху.");
+    var den = $("den").value;
+    if (!den) return showErr("Выберите день.");
+    var body = { menedzher: who, den: den, summa_mes: num($("summa").value) };
+    FIELDS.forEach(function (f) { body[f[0]] = vals[f[0]]; });
+    $("send").disabled = true; $("send").textContent = "Отправляю…";
+    call(body).then(function () {
+      var p = den.split("-");
+      var t = "Отчёт по продажам за " + p[2] + "." + p[1] + "." + p[0].slice(2) + "\n";
+      FIELDS.forEach(function (f, i) { t += (i + 1) + ".  " + f[1] + ": " + body[f[0]] + "\n"; });
+      t += "6.  Сумма заключенных договоров / план: " + fmt(body.summa_mes) + "/" + fmt(PLAN) + "р";
+      $("tekst").textContent = t;
+      $("forma").hidden = true; $("gotovo").hidden = false;
+      window.scrollTo(0, 0);
+    }).catch(function (e) {
+      showErr(e.message === "Failed to fetch" ? "Нет связи. Проверьте интернет и нажмите ещё раз." : e.message);
+    }).then(function () { $("send").disabled = false; $("send").textContent = "Отправить"; });
+  };
+
+  $("copy").onclick = function () {
+    var t = $("tekst").textContent, b = this;
+    var done = function () { b.textContent = "Скопировано, вставьте в чат"; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, fallback);
+    } else fallback();
+    function fallback() {
+      var a = document.createElement("textarea"); a.value = t; document.body.appendChild(a);
+      a.select(); try { document.execCommand("copy"); done(); } catch (e) {} a.remove();
+    }
+  };
+  $("snova").onclick = function () { $("gotovo").hidden = true; $("forma").hidden = false; $("copy").textContent = "Скопировать для чата"; };
+
+  if (NAMES.indexOf(load("menedzher")) >= 0) pick(load("menedzher"));
+})();
+</script>
+</body>
+</html>

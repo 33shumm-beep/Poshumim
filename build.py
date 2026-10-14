@@ -57,6 +57,10 @@ def main() -> None:
                  "icon-192.png", "icon-512.png", "icon-maskable-512.png"):
         shutil.copy(APP / name, DIST / name)
 
+    # Форма вечернего отчёта менеджеров (отдельная страница, ключ приходит в ссылке после #).
+    (DIST / "otchet").mkdir(exist_ok=True)
+    shutil.copy(ROOT / "otchet" / "index.html", DIST / "otchet" / "index.html")
+
     print("dist/index.html собран")
 
 
