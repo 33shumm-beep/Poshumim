@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Сделки месяца</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#fff; --text:#16181d; --muted:#6b7280; --line:#e3e5e9;
+    --accent:#1f7a4d; --accent-text:#fff; --chip:#eef0f3; --bar:#2f6fde; --won:#1f7a4d; --lost:#b42318; --err:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#111317; --card:#1b1e24; --text:#eef0f3; --muted:#9aa1ac; --line:#2c3038;
+      --accent:#2f9e66; --chip:#252932; --bar:#5b8def; --won:#3fb67a; --lost:#f97066; --err:#f97066; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  main{max-width:980px;margin:0 auto;padding:16px 16px 32px}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:12px}
+  h1{font-size:22px;margin:0}
+  .muted{color:var(--muted);font-size:13px}
+  button{font:inherit;cursor:pointer}
+  .refresh{margin-left:auto;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:6px 12px}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+  .kpi div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .chips button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:999px;padding:5px 12px;font-size:14px}
+  .chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
+  .card h2{font-size:17px;margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+  .row{display:grid;grid-template-columns:minmax(120px,220px) 1fr 44px;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer}
+  .row:first-of-type{border-top:0}
+  .row.empty{cursor:default;color:var(--muted)}
+  .track{height:10px;background:var(--chip);border-radius:6px;overflow:hidden}
+  .fill{height:100%;background:var(--bar);border-radius:6px}
+  .fill.won{background:var(--won)} .fill.lost{background:var(--lost)}
+  .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .list{margin:0 0 6px;padding:0;list-style:none}
+  .list li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:6px 8px;border-radius:8px;background:var(--chip);margin-top:4px;font-size:14px}
+  .list a{color:inherit;font-weight:500;text-decoration:none}
+  .list a:hover{text-decoration:underline}
+  .list .m{color:var(--muted);font-size:12px;grid-column:1/-1}
+  .err{color:var(--err);margin-top:16px}
+  @media (max-width:520px){ .row{grid-template-columns:1fr 44px} .track{grid-column:1/-1;order:3} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Сделки месяца</h1>
+    <span class="muted" id="when">Загружаю…</span>
+    <button class="refresh" id="refresh" type="button">Обновить</button>
+  </header>
+  <div class="kpi" id="kpi"></div>
+  <div class="chips" id="pipes"></div>
+  <div class="chips" id="people"></div>
+  <div id="board"></div>
+  <div class="err" id="err" hidden></div>
+</main>
+<script>
+const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
+const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
+const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rub = (n) => Math.round(n).toLocaleString("ru-RU") + " ₽";
+const dt = (t) => new Date(t * 1000).toLocaleString("ru-RU", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit", timeZone:"Europe/Moscow"});
+let data = null, pipe = "all", kto = "all", open = new Set();
+
+function chips(el, items, cur, set) {
+  el.innerHTML = items.map(([v, t]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${esc(t)}</button>`).join("");
+  el.onclick = (e) => { const b = e.target.closest("button"); if (b) { set(b.dataset.v); render(); } };
+}
+
+function render() {
+  const mes = MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
+  $("title").textContent = "Сделки за " + mes;
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · создано с 1-го числа, этап на сейчас";
+  const vse = data.sdelki.filter((d) => kto === "all" || d.kto === kto);
+  const vybor = vse.filter((d) => pipe === "all" || String(d.v) === pipe);
+  const won = vybor.filter((d) => d.e === 142), lost = vybor.filter((d) => d.e === 143);
+  $("kpi").innerHTML = [
+    ["Всего сделок", vybor.length],
+    ["В работе", vybor.length - won.length - lost.length],
+    ["Успешно", won.length + (won.length ? " · " + rub(won.reduce((s, d) => s + d.price, 0)) : "")],
+    ["Закрыто, не реализовано", lost.length],
+  ].map(([t, v]) => `<div><span class="muted">${t}</span><b>${v}</b></div>`).join("");
+
+  const est = data.voronki.filter((p) => vse.some((d) => d.v === p.id));
+  chips($("pipes"), [["all", "Все воронки · " + vse.length], ...est.map((p) => [p.id, p.name + " · " + vse.filter((d) => d.v === p.id).length])], pipe, (v) => pipe = v);
+  const lyudi = [...new Set(data.sdelki.map((d) => d.kto).filter(Boolean))].sort();
+  chips($("people"), [["all", "Все менеджеры"], ...lyudi.map((n) => [n, n])], kto, (v) => kto = v);
+
+  $("board").innerHTML = est.filter((p) => pipe === "all" || String(p.id) === pipe).map((p) => {
+    const ds = vse.filter((d) => d.v === p.id);
+    const max = Math.max(1, ...p.etapy.map((s) => ds.filter((d) => d.e === s.id).length));
+    const rows = p.etapy.map((s) => {
+      const list = ds.filter((d) => d.e === s.id);
+      const key = p.id + ":" + s.id, isOpen = open.has(key) && list.length;
+      const cls = s.id === 142 ? "won" : s.id === 143 ? "lost" : "";
+      return `<div class="row${list.length ? "" : " empty"}" data-k="${key}">
+          <span>${isOpen ? "▾" : list.length ? "▸" : "·"} ${esc(s.name)}</span>
+          <div class="track"><div class="fill ${cls}" style="width:${list.length / max * 100}%"></div></div>
+          <span class="num">${list.length}</span></div>` +
+        (isOpen ? `<ul class="list">${list.map((d) => `<li><a href="https://${data.domen}.amocrm.ru/leads/detail/${d.id}" target="_blank" rel="noopener">${esc(d.name || "Сделка " + d.id)}</a>
+          <span class="num">${d.price ? rub(d.price) : ""}</span>
+          <span class="m">${esc(d.kto)} · создана ${dt(d.sozd)} · изменена ${dt(d.izm)}</span></li>`).join("")}</ul>` : "");
+    }).join("");
+    return `<section class="card"><h2><span>${esc(p.name)}</span><span class="num">${ds.length}</span></h2>${rows}</section>`;
+  }).join("") || `<p class="muted">В этом месяце сделок нет.</p>`;
+}
+
+$("board").onclick = (e) => {
+  const r = e.target.closest(".row"); if (!r || r.classList.contains("empty")) return;
+  open.has(r.dataset.k) ? open.delete(r.dataset.k) : open.add(r.dataset.k); render();
+};
+
+async function load() {
+  $("refresh").disabled = true; $("when").textContent = "Загружаю…";
+  try {
+    const res = await fetch(URL_FN, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + ANON, apikey: ANON }, body: JSON.stringify({ k: KEY }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || "Ошибка " + res.status);
+    data = j; $("err").hidden = true; render();
+  } catch (e) {
+    $("err").hidden = false; $("err").textContent = "Не загрузилось: " + e.message;
+    if (data) render(); else $("when").textContent = "";
+  } finally { $("refresh").disabled = false; }
+}
+$("refresh").onclick = load;
+load();
+setInterval(load, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && data && Date.now() / 1000 - data.obnovleno > 60) load(); });
+</script>
+</body>
+</html>

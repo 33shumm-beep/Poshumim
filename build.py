@@ -61,6 +61,10 @@ def main() -> None:
     (DIST / "otchet").mkdir(exist_ok=True)
     shutil.copy(ROOT / "otchet" / "index.html", DIST / "otchet" / "index.html")
 
+    # Витрина «Сделки месяца» для amoCRM (ключ тоже в ссылке после #).
+    (DIST / "sdelki").mkdir(exist_ok=True)
+    shutil.copy(ROOT / "sdelki" / "index.html", DIST / "sdelki" / "index.html")
+
     print("dist/index.html собран")
 
 
