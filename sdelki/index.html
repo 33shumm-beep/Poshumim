@@ -72,7 +72,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
-const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan", prosrochka: "prosrochka" })[new URLSearchParams(location.search).get("p")] || "mesyac";
+const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan", prosrochka: "prosrochka", istochniki: "istochniki" })[new URLSearchParams(location.search).get("p")] || "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -182,7 +182,37 @@ function renderProsrochka() {
   }).join("") || `<p class="muted">Просроченных задач нет. Красота 👌</p>`;
 }
 
+function renderIstochniki() {
+  $("title").textContent = "Источники заявок за " + MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · все новые заявки месяца в Основной и Отложенном спросе, по полю «Источник обращения»";
+  const lyudi = [...new Set(data.sdelki.map((d) => d.kto).filter(Boolean))].sort();
+  const vse = data.sdelki.filter((d) => kto === "all" || d.kto === kto);
+  const gr = {};
+  for (const d of vse) (gr[d.ist] ??= []).push(d);
+  const ist = Object.keys(gr).sort((a, b) => (a === "Не указан") - (b === "Не указан") || gr[b].length - gr[a].length);
+  const kv = vse.filter((d) => d.kv).length;
+  $("kpi").innerHTML = [
+    ["Новых заявок", vse.length],
+    ["Из них квал", kv + ` <span class="muted">${proc(kv, vse.length)}</span>`],
+    ["Главный источник", ist.length && ist[0] !== "Не указан" ? esc(ist[0]) : "—"],
+    ["Без источника", (gr["Не указан"]?.length ?? 0)],
+  ].map(([n, v]) => `<div><span class="muted">${n}</span><b>${v}</b></div>`).join("");
+  $("pipes").innerHTML = "";
+  chips($("people"), [["all", "Все менеджеры"], ...lyudi.map((n) => [n, n])], kto, (v) => kto = v);
+  const max = Math.max(1, ...ist.map((n) => gr[n].length));
+  $("board").innerHTML = ist.length ? `<section class="card"><h2><span>Источник</span><span class="muted">заявки · квалы · доля</span></h2>` + ist.map((n) => {
+    const list = gr[n], key = "i:" + n, isOpen = open.has(key), k = list.filter((d) => d.kv).length;
+    return `<div class="row" data-k="${esc(key)}">
+        <span>${isOpen ? "▾" : "▸"} ${esc(n)} <span class="muted">· ${k} квал · ${proc(list.length, vse.length)}</span></span>
+        <div class="track"><div class="fill${n === "Не указан" ? " lost" : ""}" style="width:${list.length / max * 100}%"></div></div>
+        <span class="num">${list.length}</span></div>` +
+      (isOpen ? `<ul class="list">${list.map((d) => `<li><a href="https://${data.domen}.amocrm.ru/leads/detail/${d.id}" target="_blank" rel="noopener">${esc(d.name || "Сделка " + d.id)}</a>${d.kv ? ' <span class="kv">✓ квал</span>' : ""}
+          <span class="num"></span><span class="m">${esc(d.kto)} · создана ${dt(d.sozd)}</span></li>`).join("")}</ul>` : "");
+  }).join("") + `</section>` : `<p class="muted">В этом месяце заявок нет.</p>`;
+}
+
 function render() {
+  if (data.rezhim === "istochniki") return renderIstochniki();
   if (data.rezhim === "prosrochka") return renderProsrochka();
   if (data.rezhim === "plan") return renderPlan();
   if (data.rezhim === "konversii") return renderKonversii();
