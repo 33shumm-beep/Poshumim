@@ -1,0 +1,27 @@
+{
+  "widget": {
+    "name": "widget.name",
+    "description": "widget.description",
+    "short_description": "widget.short_description",
+    "version": "1.0.0",
+    "interface_version": 2,
+    "init_once": false,
+    "locale": [
+      "ru"
+    ],
+    "installation": false,
+    "support": {
+      "link": "https://kapitalstroy68.com/"
+    }
+  },
+  "locations": [
+    "everywhere"
+  ],
+  "tour": {
+    "is_tour": false,
+    "tour_images": {
+      "ru": []
+    },
+    "tour_description": "widget.tour_description"
+  }
+}
