@@ -72,7 +72,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
-const REZHIM = ({ vchera: "vchera", konversii: "konversii" })[new URLSearchParams(location.search).get("p")] || "mesyac";
+const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan" })[new URLSearchParams(location.search).get("p")] || "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -106,7 +106,40 @@ function renderKonversii() {
     <p class="muted">Квалы: созданы в этом месяце в Основной и Отложенном спросе. Замер: сделка в этом месяце дошла до «Замер проведен» в Основной. Договор: в этом месяце перешла в «Договор подписан».</p></section>`;
 }
 
+function renderPlan() {
+  const mes = MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
+  $("title").textContent = "Выполнение плана за " + mes;
+  const dolya = data.den / data.dney;
+  const ms = data.menedzhery;
+  const plan = Math.round(ms.reduce((t, x) => t + x.plan, 0) / 1000) * 1000, fakt = ms.reduce((t, x) => t + x.fakt, 0);
+  const pr = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const prognoz = (f) => dolya ? f / dolya : 0;
+  const daty = ms.map((x) => x.na_datu).filter(Boolean).sort();
+  const na = daty.length ? new Date(daty[daty.length - 1] + "T00:00:00Z").toLocaleDateString("ru-RU", {day: "numeric", month: "long", timeZone: "UTC"}) : "—";
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · сумма договоров из вечерних отчётов менеджеров (последний: " + na + ")";
+  $("kpi").innerHTML = [
+    ["Выполнено", pr(fakt, plan) + "%"],
+    ["Факт", rub(fakt)],
+    ["План отдела", rub(plan)],
+    ["Осталось", rub(Math.max(0, plan - fakt))],
+    ["Прошло месяца", Math.round(dolya * 100) + `% <span class="muted">${data.den} из ${data.dney} дн.</span>`],
+    ["Прогноз к концу", pr(prognoz(fakt), plan) + "%"],
+  ].map(([n, v]) => `<div><span class="muted">${n}</span><b>${v}</b></div>`).join("");
+  $("pipes").innerHTML = ""; $("people").innerHTML = "";
+  const stroka = (x, bold) => {
+    const p = pr(x.fakt, x.plan), cls = p >= Math.round(dolya * 100) ? "won" : "lost";
+    return `<tr${bold ? ' class="itog"' : ""}><td>${esc(x.imya)}</td><td class="num">${rub(x.fakt)}</td><td class="num">${rub(x.plan)}</td>
+      <td><div class="track"><div class="fill ${cls}" style="width:${Math.min(100, p)}%"></div></div></td><td class="num">${p}%</td>
+      <td class="num">${pr(prognoz(x.fakt), x.plan)}%</td></tr>`;
+  };
+  $("board").innerHTML = `<section class="card"><div class="scroll"><table class="tab">
+    <thead><tr><th>Менеджер</th><th>Факт</th><th>План</th><th></th><th>Выполнено</th><th>Прогноз</th></tr></thead>
+    <tbody>${ms.map((x) => stroka(x)).join("")}${stroka({ imya: "Весь отдел", fakt, plan }, true)}</tbody></table></div>
+    <p class="muted">Зелёная полоса: идёт с опережением календаря, красная: отстаёт. Прогноз: если продавать в том же темпе до конца месяца.</p></section>`;
+}
+
 function render() {
+  if (data.rezhim === "plan") return renderPlan();
   if (data.rezhim === "konversii") return renderKonversii();
   const d0 = new Date((data.s + 3 * 3600) * 1000);
   if (data.rezhim === "vchera") {
