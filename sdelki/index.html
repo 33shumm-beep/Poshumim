@@ -43,6 +43,13 @@
   .list a{color:inherit;font-weight:500;text-decoration:none}
   .list a:hover{text-decoration:underline}
   .list .m{color:var(--muted);font-size:12px;grid-column:1/-1}
+  .scroll{overflow-x:auto}
+  .tab{width:100%;border-collapse:collapse;font-size:14px}
+  .tab th{font-size:12px;color:var(--muted);font-weight:500;text-align:right;padding:6px 8px;white-space:nowrap}
+  .tab th:first-child,.tab td:first-child{text-align:left}
+  .tab td{padding:8px;border-top:1px solid var(--line)}
+  .tab td .track{min-width:70px}
+  .tab tr.itog td{font-weight:700}
   .kv{font-size:12px;color:var(--accent);font-weight:600}
   .err{color:var(--err);margin-top:16px}
   @media (max-width:520px){ .row{grid-template-columns:1fr 44px} .track{grid-column:1/-1;order:3} }
@@ -65,7 +72,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
-const REZHIM = new URLSearchParams(location.search).get("p") === "vchera" ? "vchera" : "mesyac";
+const REZHIM = ({ vchera: "vchera", konversii: "konversii" })[new URLSearchParams(location.search).get("p")] || "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -78,7 +85,29 @@ function chips(el, items, cur, set) {
   el.onclick = (e) => { const b = e.target.closest("button"); if (b) { set(b.dataset.v); render(); } };
 }
 
+function proc(a, b) { return b ? Math.round(a / b * 100) + "%" : "—"; }
+function renderKonversii() {
+  const mes = MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
+  $("title").textContent = "Конверсии за " + mes;
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · квал → замер → договор, по ответственному за сделку";
+  const t = data.itogo;
+  $("kpi").innerHTML = [
+    ["Квал → замер", proc(t.zamer, t.kval) + ` <span class="muted">${t.zamer} из ${t.kval}</span>`],
+    ["Замер → договор", proc(t.dogovor, t.zamer) + ` <span class="muted">${t.dogovor} из ${t.zamer}</span>`],
+  ].map(([n, v]) => `<div><span class="muted">${n}</span><b>${v}</b></div>`).join("");
+  $("pipes").innerHTML = ""; $("people").innerHTML = "";
+  const bar = (a, b, cls) => `<div class="track"><div class="fill ${cls}" style="width:${b ? Math.min(100, a / b * 100) : 0}%"></div></div>`;
+  const row = (x, bold) => `<tr${bold ? ' class="itog"' : ""}><td>${esc(x.imya)}</td>
+      <td class="num">${x.kval}</td><td class="num">${x.zamer}</td><td>${bar(x.zamer, x.kval, "")}</td><td class="num">${proc(x.zamer, x.kval)}</td>
+      <td class="num">${x.dogovor}</td><td>${bar(x.dogovor, x.zamer, "won")}</td><td class="num">${proc(x.dogovor, x.zamer)}</td></tr>`;
+  $("board").innerHTML = `<section class="card"><div class="scroll"><table class="tab">
+    <thead><tr><th>Менеджер</th><th>Квалы</th><th>Замеры</th><th></th><th>Квал→замер</th><th>Договоры</th><th></th><th>Замер→договор</th></tr></thead>
+    <tbody>${data.menedzhery.map((x) => row(x)).join("")}${row(t, true)}</tbody></table></div>
+    <p class="muted">Квалы: созданы в этом месяце в Основной и Отложенном спросе. Замер: сделка в этом месяце дошла до «Замер проведен» в Основной. Договор: в этом месяце перешла в «Договор подписан».</p></section>`;
+}
+
 function render() {
+  if (data.rezhim === "konversii") return renderKonversii();
   const d0 = new Date((data.s + 3 * 3600) * 1000);
   if (data.rezhim === "vchera") {
     $("title").textContent = "Новые сделки за " + d0.toLocaleDateString("ru-RU", {day: "numeric", month: "long", timeZone: "UTC"});
