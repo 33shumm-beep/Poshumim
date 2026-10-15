@@ -72,7 +72,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
-const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan" })[new URLSearchParams(location.search).get("p")] || "mesyac";
+const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan", prosrochka: "prosrochka" })[new URLSearchParams(location.search).get("p")] || "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -138,7 +138,52 @@ function renderPlan() {
     <p class="muted">Зелёная полоса: идёт с опережением календаря, красная: отстаёт. Прогноз: если продавать в том же темпе до конца месяца.</p></section>`;
 }
 
+function skolko(sek) {
+  const d = Math.floor(sek / 86400);
+  if (d >= 1) return d + " дн.";
+  const h = Math.floor(sek / 3600);
+  return h >= 1 ? h + " ч" : Math.max(1, Math.floor(sek / 60)) + " мин";
+}
+const PRODAZHI = ["Максим Мещеряков", "Сергей Протасов", "Иван Васильев"]; // отдел продаж идёт первым
+function renderProsrochka() {
+  $("title").textContent = "Просроченные задачи";
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · невыполненные задачи со сроком в прошлом, по ответственному";
+  if (kto === "all") kto = "prodazhi";
+  const now = data.obnovleno, gr = {};
+  for (const t of data.zadachi) (gr[t.kto] ??= []).push(t);
+  const poryadok = (n) => PRODAZHI.includes(n) ? PRODAZHI.indexOf(n) : 100;
+  const lyudi = Object.keys(gr).sort((a, b) => poryadok(a) - poryadok(b) || gr[b].length - gr[a].length);
+  const vidno = lyudi.filter((n) => kto === "vse" || (kto === "prodazhi" ? PRODAZHI.includes(n) : n === kto));
+  const z = vidno.flatMap((n) => gr[n]);
+  $("kpi").innerHTML = [
+    ["Просрочено", z.length],
+    ["Больше 3 дней", z.filter((t) => now - t.srok >= 3 * 86400).length],
+    ["Самая старая", z.length ? skolko(now - Math.min(...z.map((t) => t.srok))) : "—"],
+  ].map(([n, v]) => `<div><span class="muted">${n}</span><b>${v}</b></div>`).join("");
+  $("pipes").innerHTML = "";
+  const vProd = PRODAZHI.reduce((t, n) => t + (gr[n]?.length ?? 0), 0);
+  chips($("people"), [["prodazhi", "Отдел продаж · " + vProd], ["vse", "Все · " + data.zadachi.length], ...lyudi.map((n) => [n, n + " · " + gr[n].length])], kto, (v) => kto = v);
+  const put = { leads: "leads/detail", contacts: "contacts/detail", companies: "companies/detail" };
+  const max = Math.max(1, ...vidno.map((n) => gr[n].length));
+  $("board").innerHTML = vidno.map((n) => {
+    const list = gr[n], key = "z:" + n, isOpen = open.has(key) || kto === n;
+    const star = list.filter((t) => now - t.srok >= 3 * 86400).length;
+    return `<section class="card"><div class="row" data-k="${esc(key)}">
+        <span>${isOpen ? "▾" : "▸"} ${esc(n)}${star ? ` <span class="muted">· ${star} больше 3 дн.</span>` : ""}</span>
+        <div class="track"><div class="fill lost" style="width:${list.length / max * 100}%"></div></div>
+        <span class="num">${list.length}</span></div>` +
+      (isOpen ? `<ul class="list">${list.map((t) => {
+        const url = put[t.tip] && t.eid ? `https://${data.domen}.amocrm.ru/${put[t.tip]}/${t.eid}` : "";
+        const imya = esc(t.nazv || t.tekst || "Задача " + t.id);
+        return `<li>${url ? `<a href="${url}" target="_blank" rel="noopener">${imya}</a>` : `<span>${imya}</span>`}
+          <span class="num" style="color:var(--lost)">${skolko(now - t.srok)}</span>
+          <span class="m">${t.nazv && t.tekst ? esc(t.tekst) + " · " : ""}срок был ${dt(t.srok)}</span></li>`;
+      }).join("")}</ul>` : "") + `</section>`;
+  }).join("") || `<p class="muted">Просроченных задач нет. Красота 👌</p>`;
+}
+
 function render() {
+  if (data.rezhim === "prosrochka") return renderProsrochka();
   if (data.rezhim === "plan") return renderPlan();
   if (data.rezhim === "konversii") return renderKonversii();
   const d0 = new Date((data.s + 3 * 3600) * 1000);
