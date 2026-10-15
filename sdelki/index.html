@@ -72,7 +72,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
-const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan", prosrochka: "prosrochka", istochniki: "istochniki" })[new URLSearchParams(location.search).get("p")] || "mesyac";
+const REZHIM = ({ vchera: "vchera", konversii: "konversii", plan: "plan", prosrochka: "prosrochka", istochniki: "istochniki", vzyata: "vzyata" })[new URLSearchParams(location.search).get("p")] || "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -211,7 +211,40 @@ function renderIstochniki() {
   }).join("") + `</section>` : `<p class="muted">В этом месяце заявок нет.</p>`;
 }
 
+function renderVzyata() {
+  $("title").textContent = "Взята в работу → Квалифицирована за " + MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
+  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · Основная воронка, переходы этапов в этом месяце, по ответственному за сделку";
+  const pr = data.pereshli, dr = data.drugie, ush = pr.length + dr.length;
+  $("kpi").innerHTML = [
+    ["Перешли в «Квалифицирована»", pr.length],
+    ["Попали на «Взята в работу»", data.prishli.length],
+    ["Ушли с «Взята» в другие этапы", dr.length],
+    ["Доля квал среди ушедших", proc(pr.length, ush)],
+  ].map(([n, v]) => `<div><span class="muted">${n}</span><b>${v}</b></div>`).join("");
+  $("pipes").innerHTML = ""; $("people").innerHTML = "";
+  const m = {};
+  const get = (n) => (m[n] ??= { imya: n, prishli: 0, pereshli: 0, drugie: 0 });
+  for (const x of data.prishli) get(x.kto).prishli++;
+  for (const x of pr) get(x.kto).pereshli++;
+  for (const x of dr) get(x.kto).drugie++;
+  const ms = Object.values(m).sort((a, b) => b.pereshli - a.pereshli || b.prishli - a.prishli);
+  const it = ms.reduce((t, x) => ({ imya: "Весь отдел", prishli: t.prishli + x.prishli, pereshli: t.pereshli + x.pereshli, drugie: t.drugie + x.drugie }), { imya: "Весь отдел", prishli: 0, pereshli: 0, drugie: 0 });
+  const row = (x, bold) => `<tr${bold ? ' class="itog"' : ""}><td>${esc(x.imya)}</td><td class="num">${x.prishli}</td><td class="num">${x.pereshli}</td>
+    <td><div class="track"><div class="fill won" style="width:${(x.pereshli + x.drugie) ? x.pereshli / (x.pereshli + x.drugie) * 100 : 0}%"></div></div></td>
+    <td class="num">${proc(x.pereshli, x.pereshli + x.drugie)}</td><td class="num">${x.drugie}</td></tr>`;
+  const kuda = Object.entries(data.kuda).sort((a, b) => b[1] - a[1]).map(([n, k]) => `${esc(n)}: ${k}`).join(" · ");
+  const key = "v:list", isOpen = open.has(key);
+  $("board").innerHTML = `<section class="card"><div class="scroll"><table class="tab">
+    <thead><tr><th>Менеджер</th><th>Попали на «Взята»</th><th>→ Квалифицирована</th><th></th><th>Доля</th><th>→ Другие этапы</th></tr></thead>
+    <tbody>${ms.map((x) => row(x)).join("")}${row(it, true)}</tbody></table></div>
+    ${kuda ? `<p class="muted">Куда ушли не в квал: ${kuda}</p>` : ""}</section>
+    <section class="card"><div class="row${pr.length ? "" : " empty"}" data-k="${key}"><span>${isOpen ? "▾" : pr.length ? "▸" : "·"} Сделки, перешедшие в «Квалифицирована»</span><div></div><span class="num">${pr.length}</span></div>
+    ${isOpen ? `<ul class="list">${pr.map((d) => `<li><a href="https://${data.domen}.amocrm.ru/leads/detail/${d.id}" target="_blank" rel="noopener">${esc(d.name || "Сделка " + d.id)}</a>
+      <span class="num"></span><span class="m">${esc(d.kto)} · перешла ${dt(d.kogda)}${d.seichas ? " · сейчас: " + esc(d.seichas) : ""}</span></li>`).join("")}</ul>` : ""}</section>`;
+}
+
 function render() {
+  if (data.rezhim === "vzyata") return renderVzyata();
   if (data.rezhim === "istochniki") return renderIstochniki();
   if (data.rezhim === "prosrochka") return renderProsrochka();
   if (data.rezhim === "plan") return renderPlan();
