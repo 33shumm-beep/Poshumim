@@ -43,6 +43,7 @@
   .list a{color:inherit;font-weight:500;text-decoration:none}
   .list a:hover{text-decoration:underline}
   .list .m{color:var(--muted);font-size:12px;grid-column:1/-1}
+  .kv{font-size:12px;color:var(--accent);font-weight:600}
   .err{color:var(--err);margin-top:16px}
   @media (max-width:520px){ .row{grid-template-columns:1fr 44px} .track{grid-column:1/-1;order:3} }
 </style>
@@ -64,6 +65,7 @@
 const URL_FN = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/sdelki-mesyac";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmY3lsZ2Njb3ZyenJsZ2ZwZnB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTczNDMsImV4cCI6MjEwNTk5MzM0M30.yiokXKJjJFH0c2nn8NKDyuTGfWbpyqUgo92K4TIHLPc";
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
+const REZHIM = new URLSearchParams(location.search).get("p") === "vchera" ? "vchera" : "mesyac";
 const MES = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -77,9 +79,14 @@ function chips(el, items, cur, set) {
 }
 
 function render() {
-  const mes = MES[new Date((data.s + 3 * 3600) * 1000).getUTCMonth()];
-  $("title").textContent = "Сделки за " + mes;
-  $("when").textContent = "обновлено " + dt(data.obnovleno) + " · квалифицированные, созданные с 1-го числа, этап на сейчас (включая закрытые)";
+  const d0 = new Date((data.s + 3 * 3600) * 1000);
+  if (data.rezhim === "vchera") {
+    $("title").textContent = "Новые сделки за " + d0.toLocaleDateString("ru-RU", {day: "numeric", month: "long", timeZone: "UTC"});
+    $("when").textContent = "обновлено " + dt(data.obnovleno) + " · все созданные вчера, этап на сейчас · ✓ квал";
+  } else {
+    $("title").textContent = "Квал. сделки за " + MES[d0.getUTCMonth()];
+    $("when").textContent = "обновлено " + dt(data.obnovleno) + " · квалифицированные, созданные с 1-го числа, этап на сейчас (включая закрытые)";
+  }
   const vse = data.sdelki.filter((d) => kto === "all" || d.kto === kto);
   const vybor = vse.filter((d) => pipe === "all" || String(d.v) === pipe);
   const won = vybor.filter((d) => d.e === 142), lost = vybor.filter((d) => d.e === 143);
@@ -88,6 +95,7 @@ function render() {
     ["В работе", vybor.length - won.length - lost.length],
     ["Успешно", won.length + (won.length ? " · " + rub(won.reduce((s, d) => s + d.price, 0)) : "")],
     ["Закрыто, не реализовано", lost.length],
+    ...(data.rezhim === "vchera" ? [["Из них квал", vybor.filter((d) => d.kv).length]] : []),
   ].map(([t, v]) => `<div><span class="muted">${t}</span><b>${v}</b></div>`).join("");
 
   const est = data.voronki.filter((p) => vse.some((d) => d.v === p.id));
@@ -106,12 +114,12 @@ function render() {
           <span>${isOpen ? "▾" : list.length ? "▸" : "·"} ${esc(s.name)}</span>
           <div class="track"><div class="fill ${cls}" style="width:${list.length / max * 100}%"></div></div>
           <span class="num">${list.length}</span></div>` +
-        (isOpen ? `<ul class="list">${list.map((d) => `<li><a href="https://${data.domen}.amocrm.ru/leads/detail/${d.id}" target="_blank" rel="noopener">${esc(d.name || "Сделка " + d.id)}</a>
+        (isOpen ? `<ul class="list">${list.map((d) => `<li><a href="https://${data.domen}.amocrm.ru/leads/detail/${d.id}" target="_blank" rel="noopener">${esc(d.name || "Сделка " + d.id)}</a>${data.rezhim === "vchera" && d.kv ? ' <span class="kv">✓ квал</span>' : ""}
           <span class="num">${d.price ? rub(d.price) : ""}</span>
           <span class="m">${esc(d.kto)} · создана ${dt(d.sozd)} · изменена ${dt(d.izm)}</span></li>`).join("")}</ul>` : "");
     }).join("");
     return `<section class="card"><h2><span>${esc(p.name)}</span><span class="num">${ds.length}</span></h2>${rows}</section>`;
-  }).join("") || `<p class="muted">В этом месяце сделок нет.</p>`;
+  }).join("") || `<p class="muted">${data.rezhim === "vchera" ? "Вчера новых сделок не было." : "В этом месяце сделок нет."}</p>`;
 }
 
 $("board").onclick = (e) => {
@@ -122,7 +130,7 @@ $("board").onclick = (e) => {
 async function load() {
   $("refresh").disabled = true; $("when").textContent = "Загружаю…";
   try {
-    const res = await fetch(URL_FN, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + ANON, apikey: ANON }, body: JSON.stringify({ k: KEY }) });
+    const res = await fetch(URL_FN, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + ANON, apikey: ANON }, body: JSON.stringify({ k: KEY, p: REZHIM }) });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || "Ошибка " + res.status);
     data = j; $("err").hidden = true; render();
