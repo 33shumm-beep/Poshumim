@@ -1,0 +1,26 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'ru.kapitalstroy.zamer'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'ru.kapitalstroy.zamer'
+        minSdk 24
+        targetSdk 34
+        versionCode (System.getenv('VERSION_CODE') ?: '1').toInteger()
+        versionName '1.' + (System.getenv('VERSION_CODE') ?: '1')
+    }
+    signingConfigs {
+        release {
+            storeFile file('../zamer-ks.jks')
+            storePassword System.getenv('KS_PASS') ?: 'zamerks2026'
+            keyAlias 'zamer'
+            keyPassword System.getenv('KS_PASS') ?: 'zamerks2026'
+        }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core:1.13.1'
+}
