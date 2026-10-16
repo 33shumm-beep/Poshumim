@@ -31,7 +31,12 @@ jobs:
       - name: Собрать APK
         env:
           VERSION_CODE: ${{ github.run_number }}
-        run: gradle --no-daemon assembleRelease
+        run: |
+          set -o pipefail
+          if ! gradle --no-daemon assembleRelease 2>&1 | tee build.log; then
+            grep -nE "error:|What went wrong|FAILED|Exception|> " build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1
+          fi
       - name: Опубликовать
         env:
           GH_TOKEN: ${{ github.token }}
