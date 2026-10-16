@@ -6,8 +6,8 @@ android {
         applicationId 'ru.kapitalstroy.zamer'
         minSdk 24
         targetSdk 34
-        versionCode (System.getenv('VERSION_CODE') ?: '1').toInteger()
-        versionName '1.' + (System.getenv('VERSION_CODE') ?: '1')
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionName "1.${System.getenv('VERSION_CODE') ?: '1'}"
     }
     signingConfigs {
         release {
