@@ -69,7 +69,9 @@ Deno.serve(async (req) => {
         const params: Record<string, unknown> = { limit: 50 };
         ids.slice(0, 40).forEach((id: number, i: number) => (params[`filter[id][${i}]`] = id));
         const leads = (await amoGet("leads", params)).data?._embedded?.leads ?? [];
-        const svezh = (vor: number[]) => leads.filter((l: any) => vor.includes(l.pipeline_id))
+        // Только сделки, заведённые не раньше чем за сутки до передачи: старые закрытые сделки клиента не берём.
+        const porog = Date.parse(p.created_at) / 1000 - 86400;
+        const svezh = (vor: number[]) => leads.filter((l: any) => vor.includes(l.pipeline_id) && l.created_at >= porog)
           .sort((a: any, b: any) => b.created_at - a.created_at)[0];
         if (!idKs && p.napravlenie !== "ТС") idKs = svezh(KS_VORONKI)?.id ?? null;
         if (!idTs && p.napravlenie !== "КС") idTs = svezh([TS])?.id ?? null;

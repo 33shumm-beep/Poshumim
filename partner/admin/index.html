@@ -69,7 +69,7 @@
     <div id="partnery"></div>
 
     <h2>Переданные клиенты <span class="muted" id="kCnt"></span></h2>
-    <p class="muted">Сумму договора и отметку об авансе ставит менеджер после первого платежа клиента. От них считается вознаграждение.</p>
+    <p class="muted">Сумму договора и отметку о платеже ставит менеджер после первого платежа клиента (по КС это обеспечительный платёж). От них считается вознаграждение.</p>
     <div id="peredachi"></div>
   </div>
 </main>
@@ -125,9 +125,9 @@
           (k.chto_nuzhno ? '<div class="muted" style="margin-top:6px">' + esc(k.chto_nuzhno) + (k.rayon ? " · " + esc(k.rayon) : "") + "</div>" : "") +
           '<details><summary>Суммы и выплата</summary><div class="grid" style="margin-top:8px">' +
           (ks ? '<div><label class="small">Сумма договора КС (работы), ₽</label><input data-f="summa_ks" inputmode="numeric" value="' + (k.summa_ks || "") + '"></div>' +
-            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ks"' + (k.avans_ks ? " checked" : "") + "> аванс КС получен</label></div>" : "") +
+            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ks"' + (k.avans_ks ? " checked" : "") + "> обеспечительный платёж КС получен</label></div>" : "") +
           (ts ? '<div><label class="small">Сумма договора ТС, ₽</label><input data-f="summa_ts" inputmode="numeric" value="' + (k.summa_ts || "") + '"></div>' +
-            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ts"' + (k.avans_ts ? " checked" : "") + "> аванс ТС получен</label></div>" : "") +
+            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ts"' + (k.avans_ts ? " checked" : "") + "> первый платёж ТС получен</label></div>" : "") +
           '<div><label class="small">Выплачено партнёру всего, ₽</label><input data-f="vyplacheno" inputmode="numeric" value="' + (k.vyplacheno || "") + '"></div>' +
           '<div><label class="small">Сделка amo (если не нашлась сама)</label><input data-f="' + (ks ? "amo_lead_id" : "amo_lead_ts") + '" inputmode="numeric" value="' + ((ks ? k.amo_lead_id : k.amo_lead_ts) || "") + '"></div>' +
           '<div style="grid-column:1/-1"><label class="small">Комментарий</label><input data-f="kommentariy" value="' + esc(k.kommentariy || "") + '"></div>' +
