@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Партнёр КС и ТС</title>
+<style>
+  :root{
+    --bg:#f3f3f4; --card:#fff; --text:#1d1f23; --muted:#6b6f78; --line:#e2e3e6;
+    --accent:#c8102e; --accent-text:#fff; --chip:#eeeff1; --head:#26282d; --ok:#1f7a4d; --err:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121316; --card:#1c1e22; --text:#eef0f3; --muted:#9aa1ac; --line:#2d3037;
+      --accent:#e0283f; --chip:#262930; --head:#0c0d0f; --ok:#3fb27f; --err:#f97066; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  header{background:var(--head);color:#fff;padding:18px 16px 14px}
+  header .wrap{max-width:480px;margin:0 auto}
+  header b{display:block;font-size:20px}
+  header span{font-size:14px;opacity:.75}
+  header i{display:inline-block;width:28px;height:4px;background:var(--accent);margin-bottom:10px;border-radius:2px}
+  main{max-width:480px;margin:0 auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom));}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 12px}
+  .tabs button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:11px;font-size:15px}
+  .tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .label{font-size:13px;color:var(--muted);margin:10px 0 6px}
+  .label:first-child{margin-top:0}
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .chips button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:10px;padding:10px 4px;font-size:14px}
+  .chips button[aria-pressed="true"]{background:var(--head);border-color:var(--head);color:#fff;font-weight:600}
+  input,textarea{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--card);color:var(--text);font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}
+  .check input{width:22px;height:22px;flex:none;margin:0}
+  .main-btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:17px;font-weight:600;margin-top:4px}
+  .main-btn:disabled{opacity:.5}
+  .err{color:var(--err);margin:10px 0 0;font-size:15px}
+  .okbox{border-left:4px solid var(--ok)}
+  .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+  .sum div{background:var(--chip);border-radius:10px;padding:10px 4px}
+  .sum b{display:block;font-size:18px}
+  .sum span{font-size:12px;color:var(--muted)}
+  .kl{border-top:1px solid var(--line);padding:10px 0}
+  .kl:first-child{border-top:0;padding-top:0}
+  .kl .top{display:flex;justify-content:space-between;gap:8px}
+  .kl .name{font-weight:600}
+  .kl .date{font-size:13px;color:var(--muted)}
+  .etap{display:inline-block;margin-top:6px;margin-right:6px;font-size:13px;padding:3px 8px;border-radius:999px;background:var(--chip)}
+  .etap.good{background:var(--ok);color:#fff}
+  .etap.bad{background:var(--line);color:var(--muted)}
+  .money{font-size:14px;margin-top:6px;color:var(--muted)}
+  .money b{color:var(--text)}
+  .hint{font-size:13px;color:var(--muted);margin-top:8px}
+  .contacts{font-size:14px;color:var(--muted);text-align:center;margin-top:16px}
+  .contacts a{color:var(--text)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><div class="wrap"><i></i><b>Капиталстрой · Тихие стены</b><span id="kto">Партнёрская программа</span></div></header>
+<main>
+  <div class="card" id="net" hidden><p class="err" id="netText" style="margin:0"></p></div>
+
+  <div id="app" hidden>
+    <div class="tabs">
+      <button id="tab1" aria-pressed="true">Передать клиента</button>
+      <button id="tab2" aria-pressed="false">Мои клиенты</button>
+    </div>
+
+    <section id="forma">
+      <div class="card">
+        <div class="label">Что нужно клиенту</div>
+        <div class="chips" id="napr">
+          <button data-v="КС" aria-pressed="false">Ремонт</button>
+          <button data-v="ТС" aria-pressed="false">Тихие стены</button>
+          <button data-v="Оба" aria-pressed="false">И то и другое</button>
+        </div>
+        <div class="label">Имя клиента</div>
+        <input id="imya" autocomplete="off" placeholder="Например, Ирина Соколова">
+        <div class="label">Телефон клиента</div>
+        <input id="tel" inputmode="tel" autocomplete="off" placeholder="+7 900 000-00-00">
+        <div class="label">Что знаете о задаче (необязательно)</div>
+        <textarea id="chto" placeholder="Двушка в ЖК «Вернадский», черновая, ключи в ноябре"></textarea>
+        <div class="label">Район или ЖК (необязательно)</div>
+        <input id="rayon" autocomplete="off">
+        <label class="check"><input type="checkbox" id="soglasie">
+          <span>Клиент согласен, что ему позвонят из Капиталстроя или Тихих стен</span></label>
+        <p class="err" id="err" hidden></p>
+      </div>
+      <button class="main-btn" id="send">Передать клиента</button>
+      <div class="card okbox" id="ok" hidden style="margin-top:12px">
+        <b id="okText"></b>
+        <div class="hint">Статус клиента появится во вкладке «Мои клиенты».</div>
+      </div>
+    </section>
+
+    <section id="spisok" hidden>
+      <div class="card">
+        <div class="sum">
+          <div><b id="sKl">0</b><span>клиентов</span></div>
+          <div><b id="sNach">0 ₽</b><span>начислено</span></div>
+          <div><b id="sVypl">0 ₽</b><span>выплачено</span></div>
+        </div>
+      </div>
+      <div class="card" id="klienty"></div>
+      <div class="hint" id="upd"></div>
+    </section>
+
+    <div class="contacts">Вопросы: <a href="tel:+79606602200">8 960 660-22-00</a></div>
+  </div>
+</main>
+<script>
+(function () {
+  var API = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/partner";
+  var T = (location.hash.match(/t=([0-9a-f]{24})/) || [])[1] || "";
+  var $ = function (id) { return document.getElementById(id); };
+  var napr = "";
+  var rub = function (n) { return (Math.round(n) || 0).toLocaleString("ru-RU") + " ₽"; };
+
+  function zapros(body) {
+    body.t = T;
+    return fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Ошибка"); return d; }); });
+  }
+  function oshibka(t) { $("net").hidden = false; $("netText").textContent = t; }
+
+  if (!T) { oshibka("Ссылка неполная. Попросите личную ссылку у менеджера: 8 960 660-22-00"); return; }
+  zapros({ action: "info" }).then(function (d) {
+    $("kto").textContent = d.imya + (d.kompaniya ? " · " + d.kompaniya : "");
+    $("app").hidden = false;
+    if (/moi/.test(location.hash)) vkladka(2);
+  }).catch(function (e) { oshibka(e.message); });
+
+  function vkladka(n) {
+    $("tab1").setAttribute("aria-pressed", n === 1); $("tab2").setAttribute("aria-pressed", n === 2);
+    $("forma").hidden = n !== 1; $("spisok").hidden = n !== 2;
+    if (n === 2) zagruzit();
+  }
+  $("tab1").onclick = function () { vkladka(1); };
+  $("tab2").onclick = function () { vkladka(2); };
+
+  [].forEach.call($("napr").children, function (b) {
+    b.onclick = function () {
+      napr = b.dataset.v;
+      [].forEach.call($("napr").children, function (x) { x.setAttribute("aria-pressed", x === b); });
+    };
+  });
+
+  $("send").onclick = function () {
+    $("err").hidden = true; $("ok").hidden = true;
+    var btn = this; btn.disabled = true; btn.textContent = "Отправляю…";
+    zapros({ action: "peredat", napravlenie: napr, imya: $("imya").value, tel: $("tel").value,
+      chto: $("chto").value, rayon: $("rayon").value, soglasie: $("soglasie").checked })
+      .then(function (d) {
+        $("okText").textContent = d.soobshchenie; $("ok").hidden = false;
+        ["imya", "tel", "chto", "rayon"].forEach(function (id) { $(id).value = ""; });
+        $("soglasie").checked = false;
+      })
+      .catch(function (e) { $("err").textContent = e.message; $("err").hidden = false; })
+      .then(function () { btn.disabled = false; btn.textContent = "Передать клиента"; });
+  };
+
+  var NAZV = { "КС": "Ремонт", "ТС": "Тихие стены" };
+  function plashka(kto, etap) {
+    if (!etap) return "";
+    var cls = /Договор/.test(etap) ? " good" : /Не сложилось|Отложил|Думает/.test(etap) ? " bad" : "";
+    return '<span class="etap' + cls + '">' + kto + ": " + etap + "</span>";
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function zagruzit() {
+    $("klienty").innerHTML = '<div class="hint" style="margin:0">Загружаю…</div>';
+    zapros({ action: "moi" }).then(function (d) {
+      var nach = 0, vypl = 0, posl = null;
+      $("klienty").innerHTML = d.klienty.length ? d.klienty.map(function (k) {
+        nach += k.nachisleno; vypl += k.vyplacheno;
+        if (k.obnovleno && (!posl || k.obnovleno > posl)) posl = k.obnovleno;
+        return '<div class="kl"><div class="top"><span class="name">' + esc(k.imya) + '</span><span class="date">' +
+          new Date(k.data).toLocaleDateString("ru-RU") + "</span></div>" +
+          plashka(NAZV["КС"], k.etap_ks) + plashka(NAZV["ТС"], k.etap_ts) +
+          '<div class="money">Начислено <b>' + rub(k.nachisleno) + "</b> · выплачено <b>" + rub(k.vyplacheno) + "</b></div></div>";
+      }).join("") : '<div class="hint" style="margin:0">Пока нет переданных клиентов. Первый — во вкладке «Передать клиента».</div>';
+      $("sKl").textContent = d.klienty.length; $("sNach").textContent = rub(nach); $("sVypl").textContent = rub(vypl);
+      $("upd").textContent = posl ? "Этапы обновляются раз в час. Последнее обновление: " +
+        new Date(posl).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "Этапы обновляются раз в час.";
+    }).catch(function (e) { $("klienty").innerHTML = '<p class="err" style="margin:0">' + esc(e.message) + "</p>"; });
+  }
+})();
+</script>
+</body>
+</html>

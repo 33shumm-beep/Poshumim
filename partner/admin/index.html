@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Партнёры: управление</title>
+<style>
+  :root{
+    --bg:#f3f3f4; --card:#fff; --text:#1d1f23; --muted:#6b6f78; --line:#e2e3e6;
+    --accent:#c8102e; --chip:#eeeff1; --head:#26282d; --ok:#1f7a4d; --err:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121316; --card:#1c1e22; --text:#eef0f3; --muted:#9aa1ac; --line:#2d3037;
+      --accent:#e0283f; --chip:#262930; --head:#0c0d0f; --ok:#3fb27f; --err:#f97066; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  header{background:var(--head);color:#fff;padding:16px}
+  header .wrap{max-width:720px;margin:0 auto}
+  header b{font-size:19px}
+  header i{display:block;width:28px;height:4px;background:var(--accent);margin-bottom:8px;border-radius:2px}
+  main{max-width:720px;margin:0 auto;padding:12px 16px 32px}
+  h2{font-size:16px;margin:18px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+  input,select{width:100%;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;
+    background:var(--card);color:var(--text);font-family:inherit}
+  label.small{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+  button{border:0;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;padding:10px 14px}
+  button.sec{background:var(--chip);color:var(--text);font-weight:500}
+  .row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .muted{color:var(--muted);font-size:13px}
+  .link{word-break:break-all;font-size:13px;background:var(--chip);padding:8px;border-radius:8px;margin-top:6px}
+  .tag{display:inline-block;font-size:12px;padding:2px 7px;border-radius:999px;background:var(--chip);margin:4px 4px 0 0}
+  .tag.t{background:var(--accent);color:#fff}
+  .err{color:var(--err)}
+  .ok{color:var(--ok)}
+  .chk{display:flex;gap:6px;align-items:center;font-size:14px}
+  .chk input{width:20px;height:20px}
+  details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:6px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><div class="wrap"><i></i><b>Партнёры КС и ТС · управление</b></div></header>
+<main>
+  <p class="err" id="net" hidden></p>
+  <div id="app" hidden>
+    <h2>Новый партнёр</h2>
+    <div class="card">
+      <div class="grid">
+        <div><label class="small">Имя и фамилия *</label><input id="nImya"></div>
+        <div><label class="small">Компания</label><input id="nKomp"></div>
+        <div><label class="small">Тип</label>
+          <select id="nTip"><option>Агентство недвижимости</option><option>Риелтор</option><option>Застройщик</option>
+            <option>Дизайнер</option><option>Смежник</option><option>Бывший клиент</option><option>Другое</option></select></div>
+        <div><label class="small">Телефон партнёра</label><input id="nTel" inputmode="tel"></div>
+        <div><label class="small">Ведёт</label><select id="nVedet"><option>Артём</option><option>Max</option></select></div>
+        <div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" id="nTest"> тестовый</label></div>
+      </div>
+      <div style="margin-top:10px"><button id="nAdd">Добавить и получить ссылку</button> <span id="nMsg"></span></div>
+      <div class="link" id="nLink" hidden></div>
+    </div>
+
+    <h2>Партнёры <span class="muted" id="pCnt"></span></h2>
+    <div id="partnery"></div>
+
+    <h2>Переданные клиенты <span class="muted" id="kCnt"></span></h2>
+    <p class="muted">Сумму договора и отметку об авансе ставит менеджер после первого платежа клиента. От них считается вознаграждение.</p>
+    <div id="peredachi"></div>
+  </div>
+</main>
+<script>
+(function () {
+  var API = "https://dfcylgccovrzrlgfpfpw.supabase.co/functions/v1/partner";
+  var A = (location.hash.match(/a=([0-9a-zA-Z_-]+)/) || [])[1] || "";
+  var BASE = location.href.replace(/admin\/?(#.*)?$/, "");
+  var $ = function (id) { return document.getElementById(id); };
+  var rub = function (n) { return (Math.round(n) || 0).toLocaleString("ru-RU") + " ₽"; };
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function zapros(body) {
+    body.a = A;
+    return fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Ошибка"); return d; }); });
+  }
+  var ssylka = function (token) { return BASE + "#t=" + token; };
+
+  if (!A) { $("net").hidden = false; $("net").textContent = "Ссылка неполная."; return; }
+
+  var imena = {};
+  function zagruzit() {
+    return zapros({ action: "admin_spisok" }).then(function (d) {
+      $("app").hidden = false;
+      imena = {};
+      d.partnery.forEach(function (p) { imena[p.id] = p.imya + (p.kompaniya ? ", " + p.kompaniya : ""); });
+      $("pCnt").textContent = "(" + d.partnery.filter(function (p) { return p.aktiven; }).length + " активных)";
+      $("partnery").innerHTML = d.partnery.map(function (p) {
+        return '<div class="card"><div class="row"><div><b>' + esc(p.imya) + "</b>" + (p.kompaniya ? " · " + esc(p.kompaniya) : "") +
+          '<div class="muted">' + esc(p.tip || "") + (p.telefon ? " · " + esc(p.telefon) : "") + " · ведёт " + esc(p.vedet) + "</div>" +
+          (p.test ? '<span class="tag t">тест</span>' : "") + (p.aktiven ? "" : '<span class="tag">отключён</span>') + "</div>" +
+          '<button class="sec" data-off="' + p.id + '" data-akt="' + (p.aktiven ? 1 : 0) + '">' + (p.aktiven ? "Отключить" : "Включить") + "</button></div>" +
+          '<details><summary>Личная ссылка партнёра</summary><div class="link">' + esc(ssylka(p.token)) + "</div></details></div>";
+      }).join("") || '<p class="muted">Пока никого.</p>';
+      d.partnery.forEach(function (p) {
+        var b = document.querySelector('[data-off="' + p.id + '"]');
+        b.onclick = function () {
+          zapros({ action: "admin_partner", id: p.id, imya: p.imya, kompaniya: p.kompaniya, tip: p.tip, vedet: p.vedet,
+            telefon: p.telefon, test: p.test, aktiven: !p.aktiven }).then(zagruzit);
+        };
+      });
+
+      $("kCnt").textContent = "(" + d.peredachi.length + ")";
+      $("peredachi").innerHTML = d.peredachi.map(function (k) {
+        var ks = k.napravlenie !== "ТС", ts = k.napravlenie !== "КС";
+        return '<div class="card" data-id="' + k.id + '"><div class="row"><div><b>' + esc(k.klient_imya) + "</b> · " + esc(k.klient_tel) +
+          '<div class="muted">' + new Date(k.created_at).toLocaleDateString("ru-RU") + " · от " + esc(imena[k.partner_id] || "?") +
+          " · " + esc(k.napravlenie) + (k.uzhe_v_crm ? " · уже был в amo" : "") + "</div>" +
+          (k.etap_ks ? '<span class="tag">Ремонт: ' + esc(k.etap_ks) + "</span>" : "") +
+          (k.etap_ts ? '<span class="tag">ТС: ' + esc(k.etap_ts) + "</span>" : "") +
+          (k.teplyy ? '<span class="tag">тёплый</span>' : "") + (k.test ? '<span class="tag t">тест</span>' : "") +
+          "</div><div style=\"text-align:right\"><b>" + rub(k.nachisleno) + '</b><div class="muted">начислено</div></div></div>' +
+          (k.chto_nuzhno ? '<div class="muted" style="margin-top:6px">' + esc(k.chto_nuzhno) + (k.rayon ? " · " + esc(k.rayon) : "") + "</div>" : "") +
+          '<details><summary>Суммы и выплата</summary><div class="grid" style="margin-top:8px">' +
+          (ks ? '<div><label class="small">Сумма договора КС (работы), ₽</label><input data-f="summa_ks" inputmode="numeric" value="' + (k.summa_ks || "") + '"></div>' +
+            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ks"' + (k.avans_ks ? " checked" : "") + "> аванс КС получен</label></div>" : "") +
+          (ts ? '<div><label class="small">Сумма договора ТС, ₽</label><input data-f="summa_ts" inputmode="numeric" value="' + (k.summa_ts || "") + '"></div>' +
+            '<div style="display:flex;align-items:end"><label class="chk"><input type="checkbox" data-f="avans_ts"' + (k.avans_ts ? " checked" : "") + "> аванс ТС получен</label></div>" : "") +
+          '<div><label class="small">Выплачено партнёру всего, ₽</label><input data-f="vyplacheno" inputmode="numeric" value="' + (k.vyplacheno || "") + '"></div>' +
+          '<div><label class="small">Сделка amo (если не нашлась сама)</label><input data-f="' + (ks ? "amo_lead_id" : "amo_lead_ts") + '" inputmode="numeric" value="' + ((ks ? k.amo_lead_id : k.amo_lead_ts) || "") + '"></div>' +
+          '<div style="grid-column:1/-1"><label class="small">Комментарий</label><input data-f="kommentariy" value="' + esc(k.kommentariy || "") + '"></div>' +
+          '</div><div style="margin-top:8px"><button data-save>Сохранить</button> <span data-msg></span></div></details></div>';
+      }).join("") || '<p class="muted">Пока никого не передали.</p>';
+      [].forEach.call(document.querySelectorAll("[data-save]"), function (b) {
+        b.onclick = function () {
+          var card = b.closest("[data-id]"), body = { action: "admin_peredacha", id: Number(card.dataset.id) }, msg = card.querySelector("[data-msg]");
+          [].forEach.call(card.querySelectorAll("[data-f]"), function (i) { body[i.dataset.f] = i.type === "checkbox" ? i.checked : i.value.replace(/\s/g, ""); });
+          body.kommentariy = card.querySelector('[data-f="kommentariy"]').value;
+          msg.className = ""; msg.textContent = "Сохраняю…";
+          zapros(body).then(function () { msg.className = "ok"; msg.textContent = "Сохранено"; setTimeout(zagruzit, 600); })
+            .catch(function (e) { msg.className = "err"; msg.textContent = e.message; });
+        };
+      });
+    }).catch(function (e) { $("net").hidden = false; $("net").textContent = e.message; });
+  }
+  zagruzit();
+
+  $("nAdd").onclick = function () {
+    $("nMsg").textContent = ""; $("nLink").hidden = true;
+    zapros({ action: "admin_partner", imya: $("nImya").value, kompaniya: $("nKomp").value, tip: $("nTip").value,
+      telefon: $("nTel").value, vedet: $("nVedet").value, test: $("nTest").checked })
+      .then(function (d) {
+        $("nLink").hidden = false; $("nLink").textContent = "Ссылка для партнёра: " + ssylka(d.token);
+        ["nImya", "nKomp", "nTel"].forEach(function (id) { $(id).value = ""; }); $("nTest").checked = false;
+        zagruzit();
+      })
+      .catch(function (e) { $("nMsg").className = "err"; $("nMsg").textContent = e.message; });
+  };
+})();
+</script>
+</body>
+</html>
