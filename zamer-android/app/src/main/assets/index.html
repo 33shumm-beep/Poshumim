@@ -262,6 +262,14 @@ input[type=number]{-moz-appearance:textfield}
 .v3d .v3bar b{font:600 18px var(--display);letter-spacing:.06em;text-transform:uppercase}
 .v3d canvas{flex:1;width:100%;min-height:0;touch-action:none;cursor:grab;background:radial-gradient(circle at 50% 40%,#fff,#E7EBEF)}
 .risdot{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;color:#fff;font-style:normal;font-weight:800;font-size:12px;margin-right:6px;vertical-align:middle}
+.tplbox{max-width:980px;width:calc(100vw - 32px);max-height:88vh;overflow:auto}
+.tplgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tplc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px 8px;background:#fff;border:1.5px solid var(--line,#E3E7EC);border-radius:14px;font:600 14px Manrope,system-ui,sans-serif;color:var(--ink,#1E2227);cursor:pointer;min-height:130px}
+.tplc:active,.tplc:hover{border-color:#D3232B;background:#FFF7F7}
+.tplc.wide{grid-column:span 1;text-align:center;font-weight:500;line-height:1.35}
+.tplc.wide b{font-weight:800}
+.tplgrid:has(.wide){grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.tplbox input#tq{font:500 17px Manrope,system-ui,sans-serif;height:50px;padding:0 14px;width:100%;box-sizing:border-box;border:1.5px solid #E3E7EC;border-radius:12px;text-align:left;letter-spacing:0;text-transform:none}
 
 </style>
 </head>
@@ -347,7 +355,17 @@ function risRoom(o,q){ const p=[q.x,q.y]; return o.rooms.find(r=>inPoly(p,pts(r)
 // Комната = точка старта (x,y в см) + стены по порядку: угол направления a (градусы) и длина.
 // Длина с рулетки (len) главнее нарисованной (d): после ввода размеров комната принимает точную форму.
 const wlen=w=>num(w.len)||w.d;
-function pts(r){ const P=[[r.x,r.y]]; for(let i=0;i<r.walls.length-1;i++){ const w=r.walls[i],a=w.a*Math.PI/180,p=P[i]; P.push([p[0]+Math.cos(a)*wlen(w),p[1]+Math.sin(a)*wlen(w)]); } return P; }
+// Длины стен с учётом рулетки: измеренные стены фиксированы, неизмеренные растягиваются или сжимаются так,
+// чтобы комната замкнулась (меньше всего меняются короткие стены)
+function solveLens(r){ const W=r.walls, n=W.length, U=W.map(w=>[Math.cos(w.a*Math.PI/180),Math.sin(w.a*Math.PI/180)]), L=W.map(wlen);
+  const F=W.map((w,i)=>num(w.len)?-1:i).filter(i=>i>=0); if(n<3||!F.length) return L;
+  let ex=0,ey=0; L.forEach((l,i)=>{ ex+=l*U[i][0]; ey+=l*U[i][1]; });
+  let a=0,b=0,c=0; F.forEach(i=>{ const wt=Math.max(20,W[i].d); a+=wt*U[i][0]*U[i][0]; b+=wt*U[i][0]*U[i][1]; c+=wt*U[i][1]*U[i][1]; });
+  const det=a*c-b*b, tr=a+c; let lx,ly;
+  if(Math.abs(det)>1e-6*tr*tr){ lx=-(c*ex-b*ey)/det; ly=-(-b*ex+a*ey)/det; }
+  else { if(tr<1e-9) return L; const vx=Math.sqrt(a/tr), vy=(b>=0?1:-1)*Math.sqrt(c/tr), k=-(vx*ex+vy*ey)/tr; lx=k*vx; ly=k*vy; }
+  F.forEach(i=>{ const wt=Math.max(20,W[i].d); L[i]=Math.max(20,L[i]+wt*(U[i][0]*lx+U[i][1]*ly)); }); return L; }
+function pts(r){ const L=solveLens(r), P=[[r.x,r.y]]; for(let i=0;i<r.walls.length-1;i++){ const w=r.walls[i],a=w.a*Math.PI/180,p=P[i]; P.push([p[0]+Math.cos(a)*L[i],p[1]+Math.sin(a)*L[i]]); } return P; }
 function sides(P){ return P.map((p,i)=>{ const q=P[(i+1)%P.length]; return {p,q,L:Math.hypot(q[0]-p[0],q[1]-p[1])}; }); }
 function sarea(P){ let s=0; P.forEach((a,i)=>{ const b=P[(i+1)%P.length]; s+=a[0]*b[1]-b[0]*a[1]; }); return s/2; }
 function geo(r,o){
@@ -404,7 +422,7 @@ function planSVG(o,opt={}){
     g.S.forEach((sd,i)=>{ const w=r.walls[i], m=lerp(sd.p,sd.q,.5), dx=(sd.q[0]-sd.p[0])/(sd.L||1), dy=(sd.q[1]-sd.p[1])/(sd.L||1);
       const nx=ccw?dy:-dy, ny=ccw?-dx:dx, off=9*k; // нормаль внутрь комнаты
       const anc=Math.abs(nx)>.6?(nx>0?'start':'end'):'middle'; const t=[m[0]+nx*off,m[1]+ny*off+(Math.abs(ny)>.6?(ny>0?fs*.95:-fs*.25):fs*.35)];
-      const L=num(w.len); const txt=L?`${i+1} · ${cm(L)}`:`${i+1} · ?`;
+      const L=num(w.len); const txt=L?`${i+1} · ${cm(L)}`:r.tpl?`${i+1} · ≈${cm(Math.round(sd.L/5)*5)}`:`${i+1} · ?`;
       s+=`<line data-wall="${r.id}:${i}" x1="${sd.p[0]}" y1="${sd.p[1]}" x2="${sd.q[0]}" y2="${sd.q[1]}" stroke="transparent" stroke-width="${(26*k).toFixed(1)}" style="cursor:pointer"/>`;
       top+=`<text data-wall="${r.id}:${i}" x="${t[0].toFixed(1)}" y="${t[1].toFixed(1)}" text-anchor="${anc}" font-size="${fs.toFixed(1)}" font-weight="700" fill="${L?'#1E2227':'#C2410C'}" ${halo} style="cursor:pointer">${txt}</text>`; });
     if(!opt.only||opt.label){ const c=centroid(P);
@@ -555,7 +573,7 @@ function tabClient(){
 // ---------- 1. План: рисуем пальцем, вносим размеры с рулетки ----------
 let ed={mode:'draw',cur:[],sel:null,vb:null,rt:'k'};
 const HINT={
-  draw:'Обведите пальцем контур комнаты одним движением или ставьте углы по очереди. Линии сами выравниваются. Нажмите на зелёную точку, чтобы замкнуть. Потом рисуйте следующую комнату.',
+  draw:'Обведите пальцем контур комнаты одним движением или ставьте углы по очереди. Линии сами выравниваются. Нажмите на зелёную точку, чтобы замкнуть. Потом рисуйте следующую комнату. Или нажмите «Шаблоны»: готовые комнаты и планировки застройщиков.',
   size:'Нажмите на стену и впишите размер с рулетки. Приложение само предложит следующую стену. Оранжевые «?» ещё не измерены. Окна и двери тяните пальцем вдоль стены или на другую стену.',
   riser:'Выберите, какой стояк, и нажмите на плане, где он стоит. Стояк можно тянуть пальцем. Нажмите на стояк, чтобы удалить.',
   move:'Перетащите комнату пальцем. Рядом с соседней она прилипнет углом. Окна и двери тоже тянутся пальцем.'};
@@ -583,6 +601,7 @@ function renderPlan(){
   $('#tools').innerHTML=`${[['draw','pen','Нарисовать комнату'],['size','ruler','Размеры'],['riser','drop','Стояки'],['move','hand','Двигать']].map(([m,i,t])=>`<span class="chip ${ed.mode===m?'on':''}" data-mode="${m}">${ic(i)}${t}</span>`).join('')}
     ${ed.mode==='riser'&&!drawing?Object.entries(RIS).map(([t,T])=>`<span class="chip sm ${ed.rt===t?'on':''}" data-rt="${t}"><i class="risdot" style="background:${T.c}">${T.s}</i>${T.n}</span>`).join(''):''}
     <span style="flex:1"></span>
+    ${!drawing?`<button class="btn sec sm" id="tplB">${ic('rooms',18)} Шаблоны</button>`:''}
     ${!drawing&&o.rooms.length?`<button class="btn blue sm" id="v3">${ic('cube',18)} 3D</button>`:''}
     ${drawing?`<button class="btn sec sm" id="undoPt">${ic('undo',18)} Убрать точку</button><button class="btn sm" id="closeR" ${ed.cur.length<3?'disabled':''}>${ic('check',18)} Замкнуть</button><button class="btn sec sm" id="cancelR">Отмена</button>`:''}
     ${!drawing&&sel?`<span class="tag" style="font-size:14px">${esc(sel.name)}</span><button class="btn sec sm" id="rotR">${ic('rotate',18)} Повернуть</button><button class="btn sec sm" id="delR">${ic('trash',18)} Удалить</button>`:''}`;
@@ -590,6 +609,7 @@ function renderPlan(){
   $('#roomChips').innerHTML=o.rooms.map(r=>{ const g=geo(r,o); return `<span class="chip sm ${ed.sel===r.id?'on':''}" data-rc="${r.id}">${esc(r.name)} <small style="opacity:.75">${g.done?f2(g.area)+' м²':'размеры '+g.sized+'/'+g.n}</small></span>`; }).join('');
   $$('[data-mode]').forEach(el=>el.onclick=()=>{ ed.mode=el.dataset.mode; ed.cur=[]; renderPlan(); });
   $$('[data-rt]').forEach(el=>el.onclick=()=>{ ed.rt=el.dataset.rt; renderPlan(); });
+  const tb=$('#tplB'); if(tb) tb.onclick=useTemplate;
   $$('[data-rc]').forEach(el=>el.onclick=()=>{ ed.sel=el.dataset.rc; if(ed.mode==='draw') ed.mode='size'; renderPlan(); const r=o.rooms.find(x=>x.id===ed.sel); const i=r.walls.findIndex(w=>!num(w.len)); if(i>=0) sizeWall(r,i); });
   const v3=$('#v3'); if(v3) v3.onclick=()=>view3d(o);
   const u=$('#undoPt'); if(u) u.onclick=()=>{ ed.cur.pop(); renderPlan(); };
@@ -631,7 +651,7 @@ async function sizeWall(r,i){
   while(i>=0&&i<r.walls.length){
     ed.sel=r.id; renderPlan(); const hl=$$(`[data-wall="${r.id}:${i}"]`); hl.forEach(el=>{ if(el.tagName==='line'){ el.setAttribute('stroke','#D3232B'); el.setAttribute('stroke-opacity','.7'); el.setAttribute('stroke-width',String(14*ed.k)); } });
     const rest=r.walls.findIndex((w,j)=>j>i&&!num(w.len));
-    const res=await ask(`${esc(r.name)} · стена ${i+1}`,r.walls[i].len,{hint:'Длина по рулетке',next:rest>=0});
+    const res=await ask(`${esc(r.name)} · стена ${i+1}`,r.walls[i].len||(r.tpl?Math.round(sides(pts(r))[i].L/5)*5:''),{hint:r.tpl&&!num(r.walls[i].len)?'Длина по рулетке. Сейчас стоит размер из шаблона, поправьте его':'Длина по рулетке. Остальные неизмеренные стены подстроятся сами',next:rest>=0});
     if(!res) break; if(res.v!==''){ r.walls[i].len=String(Math.round(num(res.v))); }
     await save(true); if(!res.go) break; i=rest;
   }
@@ -793,7 +813,7 @@ function issues(o){ const out=[]; if(!o.kv) out.push('Не указано, ск�
   const rs=o.risers||[]; ['k','v'].forEach(t=>{ if(!rs.some(q=>q.t===t)) out.push(`На плане не отмечен стояк: ${RIS[t].n.toLowerCase()} (вкладка «План», кнопка «Стояки»).`); });
   if(!num(o.height)) out.push('Не указана высота потолков (вкладка «План»).');
   o.rooms.forEach(r=>{ const g=geo(r,o), f=r.fin;
-    if(!g.done) out.push(`${r.name}: не все стены измерены (${g.sized} из ${g.n}).`); else if(g.gap>5) out.push(`${r.name}: размеры не сходятся на ${cm(g.gap)} см, перепроверьте стены.`);
+    if(!g.done) out.push(`${r.name}: ${r.tpl?'размеры из шаблона, проверьте рулеткой':'не все стены измерены'} (${g.sized} из ${g.n}).`); else if(g.gap>5) out.push(`${r.name}: размеры не сходятся на ${cm(g.gap)} см, перепроверьте стены.`);
     if((phCount[r.id]||0)<PH_MIN) out.push(`${r.name}: фото ${phCount[r.id]||0} из ${PH_MIN}.`);
     if(!(f.floor.length||f.floorOwn)||!f.walls.length) out.push(`${r.name}: не выбрана отделка пола или стен.`);
     if(f.accent==='да'&&!(f.accFin.length||f.accOwn)) out.push(`${r.name}: не выбрана отделка акцентной стены.`); });
@@ -827,7 +847,7 @@ async function passport(o){
   const ph=(await DB.all('photos')).filter(p=>p.obj===o.id);
   $('#passport').innerHTML=`
    <div class="pg"><h1 style="margin:0">Паспорт замера квартиры</h1><p style="margin:4px 0 12px;color:#555">КапиталСтрой · отделка и ремонт · kapitalstroy68.com</p>
-   <table><tr><td>Клиент</td><td>${esc(o.client)} ${esc(o.phone)}</td></tr><tr><td>Адрес</td><td>${esc(o.address)}</td></tr><tr><td>Комнат</td><td>${esc(o.kv)||'—'}</td></tr><tr><td>Дата замера</td><td>${new Date(o.created).toLocaleDateString('ru-RU')}</td></tr><tr><td>Менеджер</td><td>${esc(o.manager)}</td></tr><tr><td>Высота потолков</td><td>${num(o.height)?cm(num(o.height))+' см':'—'}</td></tr></table></div>
+   <table><tr><td>Клиент</td><td>${esc(o.client)} ${esc(o.phone)}</td></tr><tr><td>Адрес</td><td>${esc(o.address)}</td></tr><tr><td>Комнат</td><td>${esc(o.kv)||'—'}</td></tr>${o.src?`<tr><td>Типовая планировка</td><td>${esc(o.src)}</td></tr>`:''}<tr><td>Дата замера</td><td>${new Date(o.created).toLocaleDateString('ru-RU')}</td></tr><tr><td>Менеджер</td><td>${esc(o.manager)}</td></tr><tr><td>Высота потолков</td><td>${num(o.height)?cm(num(o.height))+' см':'—'}</td></tr></table></div>
    <div class="pg"><h2>План квартиры</h2>${planSVG(o,{h:420,w:700,static:1})}</div>
    <div class="pg"><h2>Объёмы</h2>${volumesTable(o)}</div>
    <div class="pg"><h2>Окна и двери</h2>${opsTable(o)}</div>
@@ -894,6 +914,112 @@ function view3d(o,onlyId){
   const close=()=>{ window.removeEventListener('resize',fit); d.remove(); };
   d.querySelector('#v3x').onclick=close; d.close=close;
   window.addEventListener('resize',fit); requestAnimationFrame(fit);
+}
+
+// ---------- готовые комнаты и типовые планировки ----------
+// Готовые формы: точки контура в см, по часовой стрелке от левого верхнего угла
+const SHAPES=[
+  {k:'rect',n:'Прямоугольная',name:'',P:[[0,0],[400,0],[400,300],[0,300]]},
+  {k:'sq',n:'Квадратная',name:'',P:[[0,0],[350,0],[350,350],[0,350]]},
+  {k:'L',n:'Г-образная',name:'',P:[[0,0],[500,0],[500,220],[300,220],[300,400],[0,400]]},
+  {k:'box',n:'С коробом в углу',name:'',P:[[0,0],[340,0],[340,40],[400,40],[400,300],[0,300]]},
+  {k:'niche',n:'С нишей',name:'',P:[[0,0],[420,0],[420,320],[260,320],[260,380],[140,380],[140,320],[0,320]]},
+  {k:'bevel',n:'Со скошенным углом',name:'',P:[[0,0],[300,0],[400,100],[400,320],[0,320]]},
+  {k:'cor',n:'Коридор',name:'Коридор',P:[[0,0],[500,0],[500,140],[0,140]]},
+  {k:'corL',n:'Коридор Г',name:'Коридор',P:[[0,0],[480,0],[480,140],[140,140],[140,360],[0,360]]},
+  {k:'wc',n:'Санузел',name:'Санузел',P:[[0,0],[200,0],[200,170],[0,170]]},
+  {k:'bath',n:'Ванная',name:'Ванная',P:[[0,0],[170,0],[170,150],[0,150]]},
+  {k:'toil',n:'Туалет',name:'Туалет',P:[[0,0],[90,0],[90,140],[0,140]]},
+  {k:'balc',n:'Балкон / лоджия',name:'Лоджия',P:[[0,0],[320,0],[320,120],[0,120]]}];
+
+// Застройщики Тамбова и планировки с сайтов (realty.yandex.ru, 26.10.2026): [комнат, общая м², кухня м²]
+// 0 — студия. Где кухня не указана, ставим типовую.
+const DEVS=[
+  {zk:'Европейский-2',dev:'СК Жупиков',adr:'ул. Савостьянова / пр. Проектный',p:[[1,39.6,10.5],[2,69.1,14],[3,79.1,11.9],[3,79.4,14.7]]},
+  {zk:'Гармония',dev:'СК Жупиков',adr:'ул. Савостьянова',p:[[1,40.2,12],[1,40.9,10.8],[1,41.3,12.7],[1,42.7,13.9],[2,61,12],[2,62.4,12],[2,63.7,15.4],[3,79.2,12.9],[3,80.8,11.5],[3,86,17.4]]},
+  {zk:'Импульс',dev:'СК Жупиков',adr:'ул. Карла Маркса, 169',p:[[2,86.3],[4,109.9]]},
+  {zk:'Сокол',dev:'БРУ',adr:'ул. Савостьянова / ул. Агапкина',p:[[1,38.7,13],[1,39.8,12],[1,40,11.9],[1,41,12],[1,43.8,13],[2,60.3,11],[2,64.1,14],[3,82.9]]},
+  {zk:'Молодёжный',dev:'БРУ',adr:'ул. Павла Строганова, 1Г',p:[[1,38.6,14],[1,39.4,12.2],[1,40.2,11.5],[1,42.5,12.3],[2,60.3,12.3],[2,63.9,13.6]]},
+  {zk:'По ул. Мичуринская, 17',dev:'Сервис',adr:'ул. Мичуринская, 17',p:[[1,47.9,12.6],[1,48.2,11.5],[1,50.5,13.9],[1,51.3,14.7],[2,68.8,15.2],[2,70.2,15.2],[3,88.8],[3,90.7,15.3]]},
+  {zk:'Домашний',dev:'Спецмонтаж',adr:'ул. Заводская',p:[[1,32.1],[1,33.7],[2,51.2],[2,52.9],[2,55.5],[3,66.2],[3,73.1]]},
+  {zk:'Империал',dev:'Лист',adr:'ул. Чичерина',p:[[1,42.6],[1,44.2],[1,45.4],[1,50.2],[2,63.8],[2,64.2],[3,77.1]]},
+  {zk:'Строганов',dev:'ГК «Еврострой»',adr:'ул. Павла Строганова',p:[[0,21.9],[0,22.8],[1,36.1,16.2],[1,40.3,9.5],[1,42.5,10],[1,43.6,10.1],[1,47.2,16.2],[2,65.8],[3,86.8]]},
+  {zk:'М 100',dev:'ГК «Еврострой»',adr:'ул. Магистральная',p:[[1,36]]},
+  {zk:'Эльдорадо',dev:'Тамбов-Бетон',adr:'д. Перикса',p:[[1,30.4,10.2],[1,30.9,9.1],[1,31.5,10.5],[2,49.3],[2,52.2],[3,67.5]]},
+  {zk:'Клубный дом «Эльдорадо»',dev:'Тамбов-Бетон',adr:'д. Перикса, ул. Гаражная, 2',p:[[2,61.6,12.1],[3,81.5,12.9],[3,84.7,12.1],[3,91.3,15.1]]},
+  {zk:'По ул. Жоголева',dev:'Оргтехстрой',adr:'д. Крутые Выселки',p:[[1,36.6,10],[1,37.5,11],[1,38.5,11]]},
+  {zk:'Жоголева',dev:'СтройРеспект',adr:'д. Крутые Выселки',p:[[2,55.1,10],[2,56.1,12],[2,57.8,11],[3,74.4,14]]},
+  {zk:'Прибрежный',dev:'СЗ «Свой дом в Тамбове»',adr:'мкр. Телецентр',p:[[1,35.2],[1,37],[2,54],[2,61],[3,72.5],[3,73.8]]},
+  {zk:'Горизонты',dev:'ГК «Тысяча квартир»',adr:'ул. Агапкина',p:[[1,29],[1,30.5],[1,31.4],[2,53],[3,72.7]]},
+  {zk:'По ул. Павла Строганова',dev:'Интерстрой',adr:'ул. Павла Строганова',p:[[1,40.3],[1,43.3],[1,47.6],[2,64.6],[3,89.7]]},
+  {zk:'Светлый',dev:'Интерстрой',adr:'д. Крутые Выселки',p:[[1,35.3],[1,38.8],[1,43.5],[2,60.7]]},
+  {zk:'МЖК-Парк',dev:'ТамбовБизнесСтрой',adr:'пос. Строитель',p:[[1,37.8,8],[1,40.6,13.3],[1,44,12],[2,52.1,10],[2,61.1,13.5],[3,81.1,16]]},
+  {zk:'Панорама',dev:'ТамбовБизнесСтрой',adr:'ул. Советская, 192Е',p:[[1,40.5],[2,70.7],[4,83.8]]},
+  {zk:'По ул. Рождественская',dev:'СеверСтрой',adr:'д. Крутые Выселки',p:[[1,38.6],[2,58.4]]},
+  {zk:'По ул. Державинской',dev:'Областной дом недвижимости',adr:'ул. Державинская',p:[[2,64.7],[2,68.5],[3,94.2]]},
+  {zk:'Рахманинов',dev:'ГК «Мегаполис»',adr:'пер. Защитный',p:[[2,61.2]]},
+  {zk:'Вернадский',dev:'ГК «Мегаполис»',adr:'ул. Советская / бул. Энтузиастов',p:[[1,50.1],[2,60.8]]},
+  {zk:'Кронштадтская',dev:'СЗ «СтройИмперия»',adr:'ул. Кронштадтская, 46',p:[[1,43.9],[3,104]]}];
+const KV_NAME=k=>k===0?'Студия':k+'-комн.';
+
+// Собираем примерную планировку по площадям: окна в верхнем ряду (кухня и комнаты), снизу санузел и коридор.
+function genLayout(kv,total,kitchen){
+  const euro=kv>0&&kitchen>=15.5, bathA=kv>=3?[3.8,1.5]:[kv>=2?4.3:3.8], corrA=Math.max(3.5,total*(kv?0.12:0.1));
+  if(!kitchen) kitchen=kv===0?0:kv===1?11:kv===2?12:13;
+  const live=Math.max(9,total-kitchen-bathA.reduce((a,b)=>a+b,0)-corrA);
+  const split=kv===0?[1]:kv===1?[1]:kv===2?[.55,.45]:kv===3?[.4,.32,.28]:[.32,.24,.22,.22];
+  const names=kv===0?['Кухня-гостиная']:kv===1?[euro?'Кухня-гостиная':'Гостиная']:['Гостиная','Спальня','Детская','Кабинет'].slice(0,kv);
+  const row=[]; if(kv>0&&!(kv===1&&euro)) row.push({n:euro?'Кухня-гостиная':'Кухня',a:kitchen});
+  split.forEach((f,i)=>row.push({n:names[i]||'Спальня',a:live*f+(kv===0||kv===1&&euro?kitchen:0)}));
+  const D=kv===0?420:480, r5=v=>Math.max(60,Math.round(v/5)*5);
+  let x=0; const top=row.map(q=>{ const w=r5(q.a*1e4/D); const R={n:q.n,x,y:0,w,h:D}; x+=w; return R; }), W=x;
+  const wet=bathA.map((a,i)=>({n:bathA.length>1?(i?'Туалет':'Ванная'):'Санузел',a}));
+  // нижний ряд: санузел и коридор; если площади мало на всю ширину, коридор короче верхнего ряда
+  const botA=Math.max(corrA,total*1e4-top.reduce((s,R)=>s+R.w*R.h,0))/1e4||corrA;
+  const d2=r5(Math.min(240,Math.max(150,botA*1e4/W)));
+  let bx=0; const bot=wet.map(q=>{ const w=r5(Math.max(q.n==='Туалет'?90:150,q.a*1e4/d2)); const R={n:q.n,x:bx,y:D,w,h:d2}; bx+=w; return R; });
+  const cw=r5(Math.min(W-bx,Math.max(140,botA*1e4/d2-bx))); bot.push({n:'Коридор',x:bx,y:D,w:cw,h:d2});
+  return {rooms:[...top,...bot],W,H:D+d2};
+}
+function rectRoom(o,R,x0,y0){ const r=newRoom(o,[[x0+R.x,y0+R.y],[x0+R.x+R.w,y0+R.y],[x0+R.x+R.w,y0+R.y+R.h],[x0+R.x,y0+R.y+R.h]],R.n); r.tpl=1; return r; }
+function placeLayout(o,L,x0,y0){
+  const made=L.rooms.map(R=>rectRoom(o,R,x0,y0)); const by=n=>made.filter(r=>r.name===n);
+  made.forEach(r=>{ if(/Кухня|Гостиная|Спальня|Детская|Кабинет/.test(r.name)) r.openings.push({type:'Окно',wall:'1',w:String(r.walls[0].d>=300?150:120),h:'150',off:''});
+    if(r.name!=='Коридор') r.openings.push({type:'Дверь',wall:'3',w:/Санузел|Ванная|Туалет/.test(r.name)?'70':'80',h:'200',off:''}); });
+  const c=by('Коридор')[0]; if(c) c.openings.push({type:'Входная дверь',wall:'2',w:'90',h:'205',off:''});
+  return made;
+}
+function tplBox(){ return new Promise(res=>{ const o=state.obj, d=document.createElement('div'); d.className='modal top';
+  let tab='rooms', q='', kvF=o.kv==='Студия'?0:o.kv==='5+'?4:(parseInt(o.kv)||null);
+  const shapeSVG=P=>{ const xs=P.map(p=>p[0]), ys=P.map(p=>p[1]), w=Math.max(...xs), h=Math.max(...ys), s=70/Math.max(w,h);
+    return `<svg viewBox="-6 -6 ${w*s+12} ${h*s+12}" width="${w*s+12}" height="${h*s+12}"><polygon points="${P.map(p=>p[0]*s+','+p[1]*s).join(' ')}" fill="#FCE9EA" stroke="#1E2227" stroke-width="3"/></svg>`; };
+  const layoutSVG=L=>{ const s=150/Math.max(L.W,L.H); return `<svg viewBox="-4 -4 ${L.W*s+8} ${L.H*s+8}" width="${L.W*s+8}" height="${L.H*s+8}">${L.rooms.map(R=>`<rect x="${R.x*s}" y="${R.y*s}" width="${R.w*s}" height="${R.h*s}" fill="${/Санузел|Ванная|Туалет/.test(R.n)?'#E8F0FC':R.n==='Коридор'?'#F3F4F6':'#fff'}" stroke="#1E2227" stroke-width="2"/>`).join('')}</svg>`; };
+  const draw=()=>{ const list=DEVS.flatMap(z=>z.p.map(p=>({z,kv:p[0],t:p[1],k:p[2]||0}))).filter(x=>(kvF==null||x.kv===kvF||(kvF===4&&x.kv>=4))&&(!q||(x.z.zk+' '+x.z.dev+' '+x.z.adr).toLowerCase().includes(q.toLowerCase())));
+    d.innerHTML=`<div class="box tplbox"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Шаблоны</h2><button class="btn sec sm" id="tx">${ic('close',18)}</button></div>
+     <div class="chips" style="margin:12px 0"><span class="chip ${tab==='rooms'?'on':''}" data-tt="rooms">Готовые комнаты</span><span class="chip ${tab==='dev'?'on':''}" data-tt="dev">Планировки застройщиков</span></div>
+     ${tab==='rooms'?`<p class="hint">Нажмите на форму, и комната встанет на план. Все размеры потом правятся нажатием на стену.</p><div class="tplgrid">${SHAPES.map((S,i)=>`<button class="tplc" data-sh="${i}">${shapeSVG(S.P)}<span>${S.n}</span></button>`).join('')}</div>`
+     :`<p class="hint">Планировки собраны по площадям с сайтов застройщиков. Форма комнат примерная: после выбора пройдитесь рулеткой, размеры правятся нажатием на стену.</p>
+      <input id="tq" placeholder="Поиск: ЖК, застройщик, улица" value="${esc(q)}" style="margin-bottom:8px">
+      <div class="chips" style="margin-bottom:10px">${[[null,'Все'],[0,'Студии'],[1,'1-комн.'],[2,'2-комн.'],[3,'3-комн.'],[4,'4+']].map(([v,t])=>`<span class="chip sm ${kvF===v?'on':''}" data-kf="${v}">${t}</span>`).join('')}</div>
+      <div class="tplgrid">${list.length?list.map((x,i)=>{ const L=genLayout(x.kv,x.t,x.k); return `<button class="tplc wide" data-ly="${i}">${layoutSVG(L)}<span><b>${KV_NAME(x.kv)} ${String(x.t).replace('.',',')} м²</b><br>${esc(x.z.zk)}<br><small>${esc(x.z.dev)}${x.k?`, кухня ${String(x.k).replace('.',',')} м²`:''}</small></span></button>`; }).join(''):'<p class="hint">Ничего не нашлось.</p>'}</div>`}</div>`;
+    const end=v=>{ d.remove(); res(v); };
+    d.querySelector('#tx').onclick=()=>end(null); d.onclick=e=>{ if(e.target===d) end(null); };
+    d.querySelectorAll('[data-tt]').forEach(el=>el.onclick=()=>{ tab=el.dataset.tt; draw(); });
+    d.querySelectorAll('[data-sh]').forEach(el=>el.onclick=()=>end({shape:SHAPES[+el.dataset.sh]}));
+    d.querySelectorAll('[data-kf]').forEach(el=>el.onclick=()=>{ kvF=el.dataset.kf==='null'?null:+el.dataset.kf; draw(); });
+    d.querySelectorAll('[data-ly]').forEach(el=>el.onclick=()=>end({lay:list[+el.dataset.ly]}));
+    const tq=d.querySelector('#tq'); if(tq) tq.oninput=()=>{ q=tq.value; const pos=tq.selectionStart; draw(); const t2=d.querySelector('#tq'); t2.focus(); t2.setSelectionRange(pos,pos); }; };
+  document.body.appendChild(d); draw(); }); }
+async function useTemplate(){
+  const o=state.obj, res=await tplBox(); if(!res) return;
+  const all=o.rooms.flatMap(r=>pts(r)), x0=all.length?Math.max(...all.map(p=>p[0]))+80:0, y0=all.length?Math.min(...all.map(p=>p[1])):0;
+  if(res.shape){ const S=res.shape, r=newRoom(o,S.P.map(p=>[x0+p[0],y0+p[1]]),S.name||undefined); r.tpl=1; o.rooms.push(r); ed.sel=r.id; ed.mode='size'; toast(`${S.n}: комната на плане. Нажмите на стену, чтобы поправить размер`); }
+  else { const x=res.lay;
+    if(o.rooms.length&&!await confirmBox('На плане уже есть комнаты. Заменить их типовой планировкой?','Заменить')) return;
+    if(o.rooms.length){ for(const p of (await DB.all('photos')).filter(p=>p.obj===o.id)) await DB.del('photos',p.id); o.rooms=[]; o.risers=[]; }
+    o.rooms.push(...placeLayout(o,genLayout(x.kv,x.t,x.k),0,0)); o.src=`${x.z.zk} (${x.z.dev}), ${KV_NAME(x.kv)} ${x.t} м²`;
+    if(!o.kv) o.kv=x.kv===0?'Студия':x.kv>=5?'5+':String(x.kv); ed.sel=null; ed.mode='size'; toast('Планировка на плане. Проверьте размеры рулеткой'); }
+  ed.vb=null; await save(true); renderPlan(); planStat(); drawTabs();
 }
 
 let rsz=null; window.addEventListener('resize',()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ if(state.view==='obj'&&state.tab==='plan'&&!ed.cur.length) renderPlan(); },200); });
