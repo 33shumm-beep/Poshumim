@@ -222,6 +222,47 @@ table.calc td:nth-child(2){color:var(--mut);font-size:13px}
   #passport h2::before{display:none}
   body{background:#fff}
 }
+/* v2: поля с единицами, план, помещения */
+.unit{position:relative}
+.unit input{padding-right:64px}
+.unit span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font:700 12px var(--body);color:var(--mut);pointer-events:none}
+.modal .unit input{padding-right:56px}
+.modal .unit span{font-size:16px}
+.hint{color:var(--mut);font-size:14px;margin:10px 0}
+#planBox .plan{height:min(64vh,620px);background:#F8FAFC;cursor:crosshair}
+#tools .chip{min-height:50px}
+#roomChips .chip small{font-weight:600}
+.op{display:grid;grid-template-columns:1.25fr .95fr .8fr .8fr 1fr 50px;gap:6px;align-items:center;margin-bottom:8px}
+.op .unit input{padding-right:44px}
+.op .unit span{font-size:11px;right:8px}
+@media (max-width:700px){.op{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.xw2{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr);gap:18px;margin-top:14px;align-items:start}
+@media (max-width:860px){.xw2{grid-template-columns:minmax(0,1fr)}}
+.mini{margin-top:12px}
+.mini .plan{height:250px;border-radius:12px}
+.xw .mini{margin:0}.xw .mini .plan{height:200px}
+.finhead{gap:8px}
+.chev{display:inline-flex;color:var(--mut);transition:transform .2s}
+.chev.up{transform:rotate(180deg)}
+.finsum{margin-top:8px;color:var(--graphite3)}
+.xbox{border-color:var(--line);background:#FAFBFC;margin-top:10px}
+.search input{min-height:46px;padding-left:16px}
+.iss{margin:0;padding-left:20px;line-height:1.7}
+.hero .chips.mgr .chip{background:#ffffff12;color:#fff;border-color:#ffffff30;min-height:52px;font-size:16px}
+.hero .chips.mgr .chip.on{background:#fff;color:var(--graphite)}
+.hero input{background:#ffffff12;border-color:#ffffff30;color:#fff}
+.hero input::placeholder{color:#ffffff80}
+.hero .hero-sw{color:#fff;opacity:.85}
+.photos img{height:130px}
+.modal.top{align-items:flex-start;padding-top:max(70px,8vh);background:#14171b4d;backdrop-filter:none;-webkit-backdrop-filter:none}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+.v3d{position:fixed;inset:0;z-index:70;background:#F3F5F7;display:flex;flex-direction:column;animation:fade .15s}
+.v3d .v3bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px max(16px,env(safe-area-inset-left,0px));background:#fff;border-bottom:1px solid var(--line)}
+.v3d .v3bar b{font:600 18px var(--display);letter-spacing:.06em;text-transform:uppercase}
+.v3d canvas{flex:1;width:100%;min-height:0;touch-action:none;cursor:grab;background:radial-gradient(circle at 50% 40%,#fff,#E7EBEF)}
+.risdot{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;color:#fff;font-style:normal;font-weight:800;font-size:12px;margin-right:6px;vertical-align:middle}
+
 </style>
 </head>
 <body>
@@ -239,7 +280,7 @@ table.calc td:nth-child(2){color:var(--mut);font-size:13px}
 // ---------- хранилище (IndexedDB, работает без интернета) ----------
 const DB = {
   db: null,
-  open(){ return new Promise((res,rej)=>{ const r=indexedDB.open('zamer-ks',1);
+  open(){ return new Promise((res,rej)=>{ const r=indexedDB.open('zamer-ks2',1);
     r.onupgradeneeded=()=>{ r.result.createObjectStore('objects',{keyPath:'id'}); r.result.createObjectStore('photos',{keyPath:'id'}); };
     r.onsuccess=()=>{DB.db=r.result;res()}; r.onerror=()=>rej(r.error); }); },
   tx(s,m){ return DB.db.transaction(s,m).objectStore(s); },
@@ -250,758 +291,614 @@ const DB = {
 };
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
 const ICO={
  hand:'<path d="M8 13V5.5a1.5 1.5 0 013 0V12m0-1V4.5a1.5 1.5 0 013 0V12m0-6.5a1.5 1.5 0 013 0V13m0-4.5a1.5 1.5 0 013 0V15a7 7 0 01-7 7h-1a7 7 0 01-6-3.5L3.5 14a1.6 1.6 0 012.7-1.7L8 15"/>',
  ruler:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
- diag:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 21L21 3"/>',
  photo:'<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
  pen:'<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
  undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/>',
  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
- rect:'<rect x="3" y="6" width="18" height="12" rx="1"/>',
- link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
  rotate:'<path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/>',
- mirror:'<path d="M12 3v18"/><path d="M8 7L3 12l5 5zM16 7l5 5-5 5z"/>',
- drop:'<path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/>',
- doc:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/>',
+ trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
  down:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>',
  plus:'<path d="M12 5v14M5 12h14"/>',
  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',
  rooms:'<path d="M3 4h18v16H3zM12 4v9M12 17v3M3 12h5"/>',
  plan:'<path d="M3 3h11v8h7v10H3z"/><path d="M14 11v4M8 3v6"/>',
- calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11v6M8 15h2M12 15h2M8 18h2M12 18h2"/>',
  roller:'<rect x="3" y="3" width="15" height="6" rx="1.5"/><path d="M18 6h3v6h-9v3"/><rect x="10" y="15" width="4" height="7" rx="1"/>',
- sum:'<path d="M18 4H6l7 8-7 8h12"/>'
+ sum:'<path d="M18 4H6l7 8-7 8h12"/>',
+ cube:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+ drop:'<path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/>',
+ close:'<path d="M6 6l12 12M18 6L6 18"/>',
+ chev:'<path d="M6 9l6 6 6-6"/>'
 };
 const ic=(n,sz=20)=>`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]||''}</svg>`;
-let toastT=null; function toast(t='Сохранено'){ const el=$('#toast'); if(!el) return; $('#toastT').textContent=t; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),1400); }
-function confirmBox(text,ok='Да'){ return new Promise(res=>{ const d=document.createElement('div'); d.className='modal';
+let toastT=null; function toast(t='Сохранено'){ const el=$('#toast'); if(!el) return; $('#toastT').textContent=t; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),1800); }
+function confirmBox(text,ok='Да',top=false){ return new Promise(res=>{ const d=document.createElement('div'); d.className='modal'+(top?' top':'');
   d.innerHTML=`<div class="box"><h2>Подтвердите</h2><p style="margin:0 0 16px;font-size:17px">${text}</p><div class="row"><button class="btn" id="cok" style="flex:1">${ok}</button><button class="btn sec" id="cno" style="flex:1">Отмена</button></div></div>`;
   document.body.appendChild(d); const end=v=>{d.remove();res(v);}; d.querySelector('#cok').onclick=()=>end(true); d.querySelector('#cno').onclick=()=>end(false); d.onclick=e=>{if(e.target===d)end(false);}; }); }
+// окно ввода числа; next — подпись второй кнопки («Дальше» для следующей стены)
+function ask(title,val,{hint='',next=false}={}){ return new Promise(res=>{ const d=document.createElement('div'); d.className='modal top';
+  d.innerHTML=`<div class="box"><h2>${title}</h2>${hint?`<p style="color:var(--mut);margin:0 0 8px">${hint}</p>`:''}<div class="unit"><input id="mval" type="number" inputmode="decimal" value="${val??''}" placeholder="0"><span>см</span></div><div class="row" style="margin-top:14px"><button class="btn" id="mok" style="flex:1">${next?'Дальше ›':'Готово'}</button>${next?'<button class="btn blue" id="mfin">Готово</button>':''}<button class="btn sec" id="mno">Отмена</button></div></div>`;
+  document.body.appendChild(d); const i=d.querySelector('#mval'); setTimeout(()=>{i.focus();i.select();},50);
+  const end=v=>{d.remove();res(v);}; d.querySelector('#mok').onclick=()=>end({v:i.value,go:next}); d.querySelector('#mno').onclick=()=>end(null);
+  if(next) d.querySelector('#mfin').onclick=()=>end({v:i.value,go:false});
+  i.onkeydown=e=>{if(e.key==='Enter') end({v:i.value,go:next});}; }); }
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
+const num=v=>{const n=parseFloat(String(v??'').replace(',','.'));return isFinite(n)?n:0};
 const f2=n=>(Math.round(n*100)/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
+const cm=n=>Math.round(n).toLocaleString('ru-RU');
 
 // ---------- справочники ----------
-const ROOM_TYPES=['Комната','Спальня','Гостиная','Детская','Кухня','Кухня-гостиная','Санузел','Ванная','Туалет','Коридор','Прихожая','Гардероб','Балкон/лоджия'];
-const FLAT_ROOMS={ // что ставится автоматически при выборе типа
-  'Однокомнатная':['Комната','Кухня','Санузел','Коридор'],
-  'Двухкомнатная':['Комната 1','Комната 2','Кухня','Санузел','Коридор'],
-  'Трёхкомнатная':['Комната 1','Комната 2','Комната 3','Кухня','Санузел','Коридор'],
-  'Четырёхкомнатная':['Комната 1','Комната 2','Комната 3','Комната 4','Кухня','Санузел','Коридор'],
-  'Частный дом':['Гостиная','Спальня','Кухня','Санузел','Прихожая']};
-function newRoom(o,type,name){ return {id:uid(),type,name,height:o.rooms[0]?.height||'270',walls:[],openings:[],state:{},note:''}; }
-function applyFlatType(o){ // пустые авто-комнаты убираем, недостающие добавляем; замеренные не трогаем
-  const want=FLAT_ROOMS[o.flatType]||[];
-  o.rooms=o.rooms.filter(r=>!(r.auto&&!r.walls.length&&!want.includes(r.name)));
-  want.forEach(n=>{ if(!o.rooms.some(r=>r.name===n)){ const r=newRoom(o,n.replace(/ \d+$/,''),n); r.auto=true; o.rooms.push(r); } });
-  const ord=n=>{const i=want.indexOf(n);return i<0?99:i;}; o.rooms.sort((a,b)=>ord(a.name)-ord(b.name));
-}
-const FLAT_TYPES=['Однокомнатная','Двухкомнатная','Трёхкомнатная','Четырёхкомнатная','Частный дом'];
-// виды чистовой отделки из прайса КС (без цен): тип → варианты укладки/исполнения
-const FIN={
-  floor:{t:'Пол',opts:{
-    'Ламинат':['по прямой','по диагонали'],
-    'Кварц-винил замковый':['по прямой','по диагонали','ёлочка венгерская','ёлочка французская'],
-    'Кварц-винил клеевой':['по прямой','по диагонали'],
-    'Керамогранит':['обычный','по диагонали','широкоформатный'],
-    'Линолеум':['простая укладка','на клей']}},
-  walls:{t:'Стены',opts:{
-    'Обои':['флизелиновые','флизелиновые с подбором','тонкие однотонные','бумажные','стеклообои','дизайнерские','шириной 0,5 м'],
-    'Покраска':['под направленный свет','без направленного света'],
-    'Плитка':['керамогранит','широкоформатный','мозаика','плитка 100×100','гекс'],
-    'Декоративная штукатурка':['короед','венецианская','байрамикс','травертин','марморино','гротто','карта мира','замша','мокрый шёлк'],
-    'Стеновые панели':['WPC / бамбук / дюрополимер','гипсовые 3D'],
-    'Покраска кирпича':[]}},
-  ceil:{t:'Потолок',opts:{
-    'Натяжной MSD':['стандартный','теневой профиль','Еврокраб','парящий'],
-    'Натяжной Bauf':['стандартный','теневой профиль','Еврокраб','парящий']}}
-};
-const ACC_COL='#e11d48', QUIET_COL='#16a34a';
-const QUIET_V=['бескаркасная','каркасная'];
-function wallHL(r){ const h={}; const add=(i,c)=>{(h[i]=h[i]||[]).push(c);};
-  if(r.accent) (r.accent.walls||[]).forEach(w=>add(+w-1,ACC_COL));
-  if(r.quiet) (r.quiet.walls&&r.quiet.walls.length?r.quiet.walls:r.walls.map((_,i)=>String(i+1))).forEach(w=>add(+w-1,QUIET_COL));
-  return h; }
-function wallArea(r,wn){ const w=r.walls[+wn-1]; if(!w) return 0; const H=num(r.height)/100; let a=num(w.len)/100*H;
-  (r.openings||[]).filter(o=>String(o.wall)===String(wn)).forEach(o=>a-=num(o.w)*num(o.h)/10000); return Math.max(0,a); }
-const accText=r=>{ const a=r.accent; if(!a||!(a.walls||[]).length) return ''; const ar=a.walls.reduce((s,w)=>s+wallArea(r,w),0);
-  return `стена ${a.walls.join(', ')}${a.type?' — '+a.type+(a.v?' ('+a.v+')':''):''} · ${f2(ar)} м²`; };
-const quietText=r=>{ const q=r.quiet; if(!q) return ''; const ws=q.walls&&q.walls.length?q.walls:null;
-  const ar=(ws||r.walls.map((_,i)=>i+1)).reduce((s,w)=>s+wallArea(r,w),0); return `${q.v} · ${ws?'стена '+ws.join(', '):'все стены'} · ${f2(ar)} м²`; };
-const WET=['Санузел','Ванная','Туалет','Кухня','Кухня-гостиная'];
-const isWet=r=>WET.includes(r.type);
-const finText=(r,k)=>Object.entries((r.fin||{})[k]||{}).map(([t,v])=>v?`${t} (${v})`:t).join(', ');
+const ROOM_NAMES=['Кухня','Гостиная','Кухня-гостиная','Спальня','Детская','Кабинет','Коридор','Прихожая','Санузел','Ванная','Туалет','Гардеробная','Кладовая','Балкон','Лоджия'];
+const FLOORS=['Линолеум','Ламинат','Керамогранит','Паркет','Инженерная доска','Кварцвинил клеевой','Кварцвинил замковый'];
+const WALLS=['Обои','Декоративная штукатурка','Покраска','Тихие стены'];
+const OWN='Свой вариант';
+const OPS={'Окно':{w:140,h:150,c:'#2F6FDB'},'Дверь':{w:80,h:200,c:'#E58A00'},'Балконная дверь':{w:70,h:210,c:'#1E8A4C'},'Входная дверь':{w:90,h:205,c:'#D3232B'}};
+const PH_MIN=2;
+const KV=['Студия','1','2','3','4','5+'];
+const RIS={k:{n:'Канализация',s:'К',c:'#7A5230'},v:{n:'Водоснабжение',s:'В',c:'#2F6FDB'}};
+const LIVING=['Гостиная','Спальня','Детская','Кабинет','Кухня-гостиная'];
+// стояк относится к комнате, если стоит внутри неё или вплотную к её стене
+function risRoom(o,q){ const p=[q.x,q.y]; return o.rooms.find(r=>inPoly(p,pts(r)))||o.rooms.find(r=>{ const w=nearestWall(r,p); return w&&w.d<35; }); }
 
-// ---------- геометрия комнаты ----------
-// стены по часовой: длина (см) и поворот в конце стены (градусы, +90 = направо)
-// выступы/ниши разбивают стену на сегменты; колонны вычитаются из пола; диагональ уточняет 4-угольник
-const TYPE_COLOR={'Кухня':'#fff1db','Кухня-гостиная':'#fff1db','Санузел':'#e0f4fa','Ванная':'#e0f4fa','Туалет':'#e0f4fa','Коридор':'#efeff3','Прихожая':'#efeff3','Гардероб':'#efeff3','Балкон/лоджия':'#eaf7e4'};
-const roomColor=r=>TYPE_COLOR[r.type]||'#e8f0ff';
-function quadHeadings(room){
-  const [a,b,c,d]=room.walls.map(w=>num(w.len)), e=num(room.diag); if(!(a&&b&&c&&d&&e)) return null;
-  const x2=(a*a+e*e-b*b)/(2*a), y2s=e*e-x2*x2; if(y2s<=0) return null; const P2=[x2,Math.sqrt(y2s)];
-  const ex=P2[0]/e, ey=P2[1]/e, t=(d*d-c*c+e*e)/(2*e), hs=d*d-t*t; if(hs<=0) return null; const h=Math.sqrt(hs);
-  const c1=[t*ex-h*ey,t*ey+h*ex], c2=[t*ex+h*ey,t*ey-h*ex]; const cr=p=>P2[0]*p[1]-P2[1]*p[0];
-  const P3=Math.sign(cr(c1))!==Math.sign(cr([a,0]))?c1:c2; const P=[[0,0],[a,0],P2,P3,[0,0]];
-  return [0,1,2,3].map(i=>Math.atan2(P[i+1][1]-P[i][1],P[i+1][0]-P[i][0])*180/Math.PI);
+// ---------- геометрия ----------
+// Комната = точка старта (x,y в см) + стены по порядку: угол направления a (градусы) и длина.
+// Длина с рулетки (len) главнее нарисованной (d): после ввода размеров комната принимает точную форму.
+const wlen=w=>num(w.len)||w.d;
+function pts(r){ const P=[[r.x,r.y]]; for(let i=0;i<r.walls.length-1;i++){ const w=r.walls[i],a=w.a*Math.PI/180,p=P[i]; P.push([p[0]+Math.cos(a)*wlen(w),p[1]+Math.sin(a)*wlen(w)]); } return P; }
+function sides(P){ return P.map((p,i)=>{ const q=P[(i+1)%P.length]; return {p,q,L:Math.hypot(q[0]-p[0],q[1]-p[1])}; }); }
+function sarea(P){ let s=0; P.forEach((a,i)=>{ const b=P[(i+1)%P.length]; s+=a[0]*b[1]-b[0]*a[1]; }); return s/2; }
+function geo(r,o){
+  const P=pts(r), S=sides(P), H=(num(o.height)||270)/100, n=r.walls.length;
+  const sized=r.walls.filter(w=>num(w.len)).length;
+  const perim=r.walls.reduce((s,w,i)=>s+(num(w.len)||S[i].L),0)/100;
+  const opA=(r.openings||[]).reduce((s,op)=>s+num(op.w)*num(op.h),0)/1e4;
+  // невязка: последняя стена по рулетке против фактического расстояния до точки старта
+  const last=r.walls[n-1]; const gap=num(last?.len)?Math.abs(S[n-1].L-num(last.len)):0;
+  const slopes=(r.openings||[]).filter(op=>/Окно|Балконная/.test(op.type)).reduce((s,op)=>s+(num(op.w)+2*num(op.h))/100,0); // откосы: верх + две стороны
+  return {P,S,H,n,sized,done:n>2&&sized===n,area:Math.abs(sarea(P))/1e4,perim,opA,slopes,walls:Math.max(0,perim*H-opA),gap};
 }
-function headings(room){
-  if(room.walls.length===4&&num(room.diag)>0){ const q=quadHeadings(room); if(q) return {hs:q,diag:true}; }
-  let h=0; const hs=room.walls.map(w=>{const v=h; h+=num(w.turn??90); return v;}); return {hs,diag:false,bad:room.walls.length===4&&num(room.diag)>0};
+function opSpan(op,S){ const s=S[(+op.wall||1)-1]; if(!s) return null; const w=Math.min(num(op.w)||OPS[op.type]?.w||80,s.L); let off=op.off===''||op.off==null?(s.L-w)/2:num(op.off); off=Math.max(0,Math.min(s.L-w,off)); return {s,off,w}; }
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]; }
+function inPoly(p,P){ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ if(((P[i][1]>p[1])!==(P[j][1]>p[1]))&&(p[0]<(P[j][0]-P[i][0])*(p[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0])) c=!c; } return c; }
+function centroid(P){ const A=sarea(P); if(Math.abs(A)<1) return P.reduce((s,p)=>[s[0]+p[0]/P.length,s[1]+p[1]/P.length],[0,0]); let x=0,y=0; P.forEach((a,i)=>{ const b=P[(i+1)%P.length],f=a[0]*b[1]-b[0]*a[1]; x+=(a[0]+b[0])*f; y+=(a[1]+b[1])*f; }); return [x/(6*A),y/(6*A)]; }
+function fitVB(rooms,pad,minW=600,minH=380){
+  const all=rooms.flatMap(r=>pts(r)); if(!all.length) return [0,0,1200,750];
+  let x0=Math.min(...all.map(p=>p[0]))-pad, y0=Math.min(...all.map(p=>p[1]))-pad, x1=Math.max(...all.map(p=>p[0]))+pad, y1=Math.max(...all.map(p=>p[1]))+pad;
+  if(x1-x0<minW){ const c=(x0+x1)/2; x0=c-minW/2; x1=c+minW/2; } if(y1-y0<minH){ const c=(y0+y1)/2; y0=c-minH/2; y1=c+minH/2; }
+  return [x0,y0,x1-x0,y1-y0];
 }
-function geom(room){
-  const {hs,diag,bad}=headings(room);
-  const turnSum=room.walls.reduce((s,w)=>s+num(w.turn??90),0); const s=diag?1:(turnSum<0?-1:1);
-  let x=0,y=0; const pts=[[0,0]], segs=[];
-  const step=(hd,len,wall,kind,from,to,f)=>{ const r=hd*Math.PI/180,a=[x,y]; x+=Math.cos(r)*len; y+=Math.sin(r)*len; pts.push([x,y]); segs.push({a,b:[x,y],wall,len,kind,from,to,hd,f}); };
-  room.walls.forEach((w,i)=>{
-    const L=num(w.len),h=hs[i]; let pos=0;
-    (room.features||[]).filter(f=>f.type!=='Колонна'&&+f.wall===i+1).sort((p,q)=>num(p.off)-num(q.off)).forEach(f=>{
-      const o=num(f.off),fw=num(f.w),d=num(f.d); if(!fw||!d||o<pos||o+fw>L) return;
-      if(o>pos) step(h,o-pos,i,'wall',pos,o);
-      const t=s*90*(f.type==='Ниша'?-1:1);
-      step(h+t,d,i,'feat'); step(h,fw,i,'feat',0,0,f); step(h-t,d,i,'feat'); pos=o+fw; });
-    if(L>pos||L===0) step(h,L-pos,i,'wall',pos,L);
-  });
-  const perimCm=segs.reduce((q,g)=>q+g.len,0), tol=Math.max(3,perimCm*0.004); const gap=Math.hypot(x,y), closed=gap<=tol&&room.walls.length>=3;
-  const poly=closed?pts.slice(0,-1):pts;
-  let a=0; for(let i=0;i<poly.length;i++){const [x1,y1]=poly[i],[x2,y2]=poly[(i+1)%poly.length];a+=x1*y2-x2*y1;}
-  const H=num(room.height)/100;
-  let colArea=0,colPer=0; const cols=[];
-  (room.features||[]).filter(f=>f.type==='Колонна').forEach(f=>{ const fw=num(f.w),d=num(f.d); if(!fw||!d) return; colArea+=fw*d/10000; colPer+=2*(fw+d)/100;
-    const wi=room.walls[+f.wall-1]?(+f.wall-1):0; const sg=segs.find(q=>q.wall===wi); if(!sg) return;
-    const r=hs[wi]*Math.PI/180,u=[Math.cos(r),Math.sin(r)],n=[-u[1]*s,u[0]*s]; const st=sg.a; const o=num(f.off),di=num(f.dist);
-    const P=(p,q)=>[st[0]+u[0]*p+n[0]*q, st[1]+u[1]*p+n[1]*q]; cols.push([P(o,di),P(o+fw,di),P(o+fw,di+d),P(o,di+d)]); });
-  const area=Math.max(0,Math.abs(a)/2/10000-colArea);
-  const perim=segs.reduce((q,g)=>q+g.len,0)/100;
-  let opArea=0,slopes=0,doorW=0;
-  (room.openings||[]).forEach(o=>{ const W=num(o.w)/100,Hh=num(o.h)/100; opArea+=W*Hh; if(o.type==='Окно'||o.type==='Балконный блок') slopes+=W+2*Hh; if(o.type!=='Окно') doorW+=W; });
-  // углы (для режима с диагональю)
-  const angles=hs.map((h,i)=>{ let d=hs[(i+1)%hs.length]-h; d=((d%360)+540)%360-180; return 180-Math.abs(d); });
-  return {pts,segs,gap,closed,poly,area,perim,H,walls:Math.max(0,perim*H+colPer*H-opArea),opArea,slopes,plinth:Math.max(0,perim+colPer-doorW),side:a<0?-1:1,s,cols,diag,bad,angles};
-}
+function rdp(P,eps){ if(P.length<3) return P; const a=P[0],b=P[P.length-1]; let md=0,mi=0; const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
+  for(let i=1;i<P.length-1;i++){ const d=Math.abs((b[0]-a[0])*(a[1]-P[i][1])-(a[0]-P[i][0])*(b[1]-a[1]))/L; if(d>md){md=d;mi=i;} }
+  return md>eps?rdp(P.slice(0,mi+1),eps).slice(0,-1).concat(rdp(P.slice(mi),eps)):[a,b]; }
+// следующая точка: угол кратен 45°, длина округлена до 5 см
+function snapNext(prev,p){ const dx=p[0]-prev[0],dy=p[1]-prev[1]; const L=Math.round(Math.hypot(dx,dy)/5)*5; if(L<15) return null;
+  const a=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4); return [prev[0]+Math.round(Math.cos(a)*L),prev[1]+Math.round(Math.sin(a)*L)]; }
 
-// примитивы комнаты в её собственных координатах (см) — для листа комнаты и общего плана
-function roomPrims(room){
-  const g=geom(room); const n=sg=>{const dx=sg.b[0]-sg.a[0],dy=sg.b[1]-sg.a[1],L=Math.hypot(dx,dy)||1; return [-dy/L*g.side,dx/L*g.side];};
-  const ops=[];
-  (room.openings||[]).forEach((o,oi)=>{
-    const wi=+o.wall-1, w=room.walls[wi]; if(!w) return; const L=num(w.len),ow=num(o.w); const off=o.off===''||o.off==null?(L-ow)/2:num(o.off);
-    const sg=g.segs.find(q=>q.wall===wi&&q.kind==='wall'&&off>=q.from-0.01&&off+ow<=q.to+0.01)||g.segs.find(q=>q.wall===wi&&q.kind==='wall'); if(!sg||!sg.len) return;
-    const k1=Math.max(0,(off-sg.from)/sg.len),k2=Math.min(1,(off+ow-sg.from)/sg.len);
-    const p1=[sg.a[0]+(sg.b[0]-sg.a[0])*k1,sg.a[1]+(sg.b[1]-sg.a[1])*k1],p2=[sg.a[0]+(sg.b[0]-sg.a[0])*k2,sg.a[1]+(sg.b[1]-sg.a[1])*k2];
-    let arc=null; if(o.type==='Дверь'||o.type==='Входная дверь'){ const nn=n(sg),r=Math.hypot(p2[0]-p1[0],p2[1]-p1[1]); arc=[]; for(let j=0;j<=10;j++){const t=j/10*Math.PI/2,u=[(p2[0]-p1[0])/r,(p2[1]-p1[1])/r]; arc.push([p1[0]+r*(u[0]*Math.cos(t)+nn[0]*Math.sin(t)),p1[1]+r*(u[1]*Math.cos(t)+nn[1]*Math.sin(t))]);} }
-    ops.push({p1,p2,type:o.type,arc,w:ow,i:oi});
+// ---------- рисунок плана ----------
+function planSVG(o,opt={}){
+  const rooms=opt.only?o.rooms.filter(r=>r.id===opt.only):o.rooms;
+  const vb=opt.vb||fitVB(rooms,opt.only?70:110);
+  const k=opt.k||(opt.h?Math.max(vb[2]/(opt.w||430),vb[3]/opt.h):vb[2]/900), fs=13*k;
+  let s=`<svg class="plan" viewBox="${vb.map(v=>Math.round(v)).join(' ')}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="Manrope,system-ui,sans-serif" style="touch-action:none;${opt.h?'height:'+opt.h+'px':''}">
+   <defs><pattern id="gr${opt.only||''}" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#E3E7EC" stroke-width="${(k*.8).toFixed(2)}"/></pattern></defs>
+   <rect x="${vb[0]-5000}" y="${vb[1]-5000}" width="${vb[2]+10000}" height="${vb[3]+10000}" fill="url(#gr${opt.only||''})"/>`;
+  let top='', ops='';
+  const halo=`paint-order="stroke" stroke="#fff" stroke-width="${(4*k).toFixed(1)}" stroke-linejoin="round"`;
+  rooms.forEach(r=>{
+    const g=geo(r,o), P=g.P, sel=opt.sel===r.id;
+    const bw=(Math.max(...P.map(p=>p[0]))-Math.min(...P.map(p=>p[0])))/k, bh=(Math.max(...P.map(p=>p[1]))-Math.min(...P.map(p=>p[1])))/k;
+    const tight=bw<190||bh<110, fs=(tight?11:13)*k; // в маленьких комнатах подписи мельче и в одну строку
+    s+=`<polygon data-room="${r.id}" points="${P.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="${sel?'#FCE9EA':'#fff'}" fill-opacity="${sel?1:.92}" stroke="#1E2227" stroke-width="${Math.max(6,3.2*k).toFixed(1)}" stroke-linejoin="miter"/>`;
+    // окна и двери
+    (r.openings||[]).forEach((op,oi)=>{ const sp=opSpan(op,g.S); if(!sp) return; const a=lerp(sp.s.p,sp.s.q,sp.off/sp.s.L), b=lerp(sp.s.p,sp.s.q,(sp.off+sp.w)/sp.s.L);
+      if(opt.only||opt.sel===r.id||opt.dragOp===r.id+':'+oi){ const m=lerp(a,b,.5), L=sp.s.L||1, ux=(sp.s.q[0]-sp.s.p[0])/L, uy=(sp.s.q[1]-sp.s.p[1])/L, cc=sarea(P)<0, ox=cc?uy:-uy, oy=cc?-ux:ux, f2s=11*k;
+        ops+=`<text x="${(m[0]-ox*16*k).toFixed(1)}" y="${(m[1]-oy*16*k+f2s*.35).toFixed(1)}" text-anchor="middle" font-size="${f2s.toFixed(1)}" font-weight="800" fill="${OPS[op.type]?.c||'#555'}" paint-order="stroke" stroke="#fff" stroke-width="${(3.5*k).toFixed(1)}" pointer-events="none">${esc(op.w)}×${esc(op.h)}</text>`; }
+      if(!opt.static) ops+=`<line data-op="${r.id}:${oi}" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${opt.dragOp===r.id+':'+oi?'#D3232B':'transparent'}" stroke-opacity=".35" stroke-width="${(30*k).toFixed(1)}" stroke-linecap="round" style="cursor:grab"/>`;
+      s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#fff" stroke-width="${Math.max(9,5*k)}"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${OPS[op.type]?.c||'#888'}" stroke-width="${Math.max(6,3.4*k)}" stroke-linecap="butt"/>`; });
+    (opt.hl||[]).forEach(j=>{ const sd=g.S[+j-1]; if(sd) s+=`<line x1="${sd.p[0]}" y1="${sd.p[1]}" x2="${sd.q[0]}" y2="${sd.q[1]}" stroke="#D3232B" stroke-width="${Math.max(10,6*k)}" stroke-opacity=".85"/>`; });
+    // подписи стен: номер и размер с рулетки
+    const ccw=sarea(P)<0;
+    g.S.forEach((sd,i)=>{ const w=r.walls[i], m=lerp(sd.p,sd.q,.5), dx=(sd.q[0]-sd.p[0])/(sd.L||1), dy=(sd.q[1]-sd.p[1])/(sd.L||1);
+      const nx=ccw?dy:-dy, ny=ccw?-dx:dx, off=9*k; // нормаль внутрь комнаты
+      const anc=Math.abs(nx)>.6?(nx>0?'start':'end'):'middle'; const t=[m[0]+nx*off,m[1]+ny*off+(Math.abs(ny)>.6?(ny>0?fs*.95:-fs*.25):fs*.35)];
+      const L=num(w.len); const txt=L?`${i+1} · ${cm(L)}`:`${i+1} · ?`;
+      s+=`<line data-wall="${r.id}:${i}" x1="${sd.p[0]}" y1="${sd.p[1]}" x2="${sd.q[0]}" y2="${sd.q[1]}" stroke="transparent" stroke-width="${(26*k).toFixed(1)}" style="cursor:pointer"/>`;
+      top+=`<text data-wall="${r.id}:${i}" x="${t[0].toFixed(1)}" y="${t[1].toFixed(1)}" text-anchor="${anc}" font-size="${fs.toFixed(1)}" font-weight="700" fill="${L?'#1E2227':'#C2410C'}" ${halo} style="cursor:pointer">${txt}</text>`; });
+    if(!opt.only||opt.label){ const c=centroid(P);
+      if(tight){ top+=`<text x="${c[0]}" y="${c[1]+(bh>80?fs*1.9:fs*.35)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="800" fill="#1E2227" ${halo} pointer-events="none">${esc(r.name)} <tspan font-weight="600" fill="${g.done?'#1E8A4C':'#69717C'}">${g.done?f2(g.area)+' м²':g.sized+'/'+g.n}</tspan></text>`; return; }
+      top+=`<text x="${c[0]}" y="${c[1]-fs*.2}" text-anchor="middle" font-size="${(fs*1.15).toFixed(1)}" font-weight="800" fill="#1E2227" ${halo} pointer-events="none">${esc(r.name)}</text>`;
+      top+=`<text x="${c[0]}" y="${c[1]+fs*1.1}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="600" fill="${g.done?'#1E8A4C':'#69717C'}" ${halo} pointer-events="none">${g.done?f2(g.area)+' м²':`размеры ${g.sized}/${g.n}`}</text>`;
+      if(g.done&&g.gap>5) top+=`<text x="${c[0]}" y="${c[1]+fs*2.3}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="700" fill="#D3232B" ${halo} pointer-events="none">не сходится на ${cm(g.gap)} см</text>`; }
   });
-  let c=null; if(g.closed){ let A=0,cx=0,cy=0; const P=g.poly; for(let i=0;i<P.length;i++){const [x1,y1]=P[i],[x2,y2]=P[(i+1)%P.length],k=x1*y2-x2*y1;A+=k;cx+=(x1+x2)*k;cy+=(y1+y2)*k;} c=A?[cx/(3*A),cy/(3*A)]:P[0]; }
-  return {g,ops,c,norm:n};
-}
-const OPC={'Окно':'#38bdf8','Балконный блок':'#22c55e','Дверь':'#f59e0b','Входная дверь':'#dc2626','Проём':'#a3a3a3'};
-function primsSVG(room,pr,T,sc,o={}){ // T: точка см -> координаты svg; o.u — толщина линий
-  const {g,ops}=pr, u=o.u||1; let s='';
-  const L=(a,b,st,w,extra='')=>{const A=T(a),B=T(b);return `<line x1="${A[0]}" y1="${A[1]}" x2="${B[0]}" y2="${B[1]}" stroke="${st}" stroke-width="${w*u}" ${extra}/>`;};
-  if(g.closed) s+=`<polygon points="${g.poly.map(p=>T(p).join(',')).join(' ')}" fill="${roomColor(room)}"/>`;
-  g.cols.forEach(c=>s+=`<polygon points="${c.map(p=>T(p).join(',')).join(' ')}" fill="#cbd5e1" stroke="#1d2330" stroke-width="${2*u}"/>`);
-  g.segs.forEach(sg=>s+=L(sg.a,sg.b,'#1d2330',o.thin?5:7,'stroke-linecap="square"'));
-  const hl=wallHL(room); g.segs.forEach(sg=>{ const c=hl[sg.wall]; if(c) c.forEach((col,k)=>s+=L(sg.a,sg.b,col,(o.thin?9:14)-k*6,`stroke-linecap="square" opacity="0.9"`)); });
-  ops.forEach(p=>{ s+=L(p.p1,p.p2,OPC[p.type]||'#f59e0b',o.thin?7:9); if(p.arc) s+=`<polyline points="${p.arc.map(q=>T(q).join(',')).join(' ')}" fill="none" stroke="${OPC[p.type]}" stroke-width="${2*u}"/>`+L(p.p1,p.arc[p.arc.length-1],OPC[p.type],2); });
-  if(!g.closed&&room.walls.length>=3) s+=L(g.pts[g.pts.length-1],g.pts[0],'#b45309',2,`stroke-dasharray="${6*u} ${6*u}"`);
+  let ris='';
+  (o.risers||[]).forEach((q,i)=>{ if(opt.only&&risRoom(o,q)?.id!==opt.only) return; const T=RIS[q.t], rr=Math.max(11,10*k), on=opt.dragRis===i;
+    ris+=`<g ${opt.static?'':`data-ris="${i}" style="cursor:grab"`}><circle cx="${q.x}" cy="${q.y}" r="${(rr*(on?1.25:1)).toFixed(1)}" fill="${T.c}" stroke="#fff" stroke-width="${(2.5*k).toFixed(1)}"/><text x="${q.x}" y="${(q.y+rr*.38).toFixed(1)}" text-anchor="middle" font-size="${(rr*1.05).toFixed(1)}" font-weight="800" fill="#fff" pointer-events="none">${T.s}</text></g>`; });
+  s+=top+ops+ris;
+  if(opt.draw&&opt.draw.length){ const C=opt.draw;
+    s+=`<polyline points="${C.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#D3232B" stroke-width="${(3.5*k).toFixed(1)}" stroke-linejoin="round"/>`;
+    C.forEach((p,i)=>{ s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${(i?5:9)*k}" fill="${i?'#D3232B':'#1E8A4C'}" stroke="#fff" stroke-width="${2*k}"/>`; }); }
+  s+=`<g id="pv"></g></svg>`;
   return s;
-}
-const LET='АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ';
-const baseGeom=room=>geom({...room,features:[]});
-function baseCorners(room){ const b=baseGeom(room); return b.closed?b.poly:b.pts; }
-function dimSVG(a,b,txt,u,col='#7c3aed',extra=''){
-  const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,n=[-dy/L,dx/L],t=8*u;
-  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
-  return `<g ${extra}><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}" stroke-width="${2*u}"/>`+
-   [a,b].map(p=>`<line x1="${p[0]-n[0]*t}" y1="${p[1]-n[1]*t}" x2="${p[0]+n[0]*t}" y2="${p[1]+n[1]*t}" stroke="${col}" stroke-width="${2*u}"/>`).join('')+
-   `<rect x="${m[0]-30*u}" y="${m[1]-12*u}" width="${60*u}" height="${24*u}" rx="${5*u}" fill="#fff" stroke="${col}" stroke-width="${u}"/><text x="${m[0]}" y="${m[1]+1*u}" font-size="${15*u}" font-weight="700" fill="${col}" text-anchor="middle" dominant-baseline="middle">${txt}</text></g>`;
-}
-// opts: h (высота для печати), edit (интерактив), grid, draw (точки рисования), pend (точка размера), diags, vb
-function planSVG(room,opts={}){
-  const pr=roomPrims(room), g=pr.g;
-  let P=room.walls.length?g.pts.concat(...g.cols):[]; if(opts.draw) P=P.concat(opts.draw);
-  let vb=opts.vb;
-  if(!vb){ if(P.length<2) vb=[-100,-100,1000,700]; else { const xs=P.map(p=>p[0]),ys=P.map(p=>p[1]); const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys); const m=Math.max(x1-x0,y1-y0,200)*0.2; vb=[x0-m,y0-m,(x1-x0)+2*m,(y1-y0)+2*m]; } }
-  const u=Math.max(vb[2],vb[3])/(opts.small?380:opts.h?900:620), I=p=>p;
-  let s=`<svg class="plan" viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg" font-family="Manrope,system-ui,sans-serif" style="touch-action:none;${opts.h?'height:'+opts.h+'px':''}">`;
-  if(opts.grid){ const st=50; for(let x=Math.floor(vb[0]/st)*st;x<=vb[0]+vb[2];x+=st) s+=`<line x1="${x}" y1="${vb[1]}" x2="${x}" y2="${vb[1]+vb[3]}" stroke="${x%100?'#eef0f3':'#dde1e7'}" stroke-width="${u}"/>`;
-    for(let y=Math.floor(vb[1]/st)*st;y<=vb[1]+vb[3];y+=st) s+=`<line x1="${vb[0]}" y1="${y}" x2="${vb[0]+vb[2]}" y2="${y}" stroke="${y%100?'#eef0f3':'#dde1e7'}" stroke-width="${u}"/>`; }
-  if(opts.bg) s+=`<image href="${opts.bg.href}" x="${opts.bg.x}" y="${opts.bg.y}" width="${opts.bg.w}" height="${opts.bg.h}" opacity="0.6" preserveAspectRatio="none"/>`;
-  if(room.walls.length) s+=primsSVG(room,pr,I,1,{u});
-  // диагонали (для сверки)
-  const bc=baseCorners(room);
-  if(opts.diags&&baseGeom(room).closed&&bc.length===4){ [[0,2],[1,3]].forEach(([i,j])=>{ s+=dimSVG(bc[i],bc[j],Math.round(Math.hypot(bc[j][0]-bc[i][0],bc[j][1]-bc[i][1])),u,'#94a3b8'); }); }
-  // буквы углов
-  if(baseGeom(room).closed) bc.forEach((p,i)=>{ const c=pr.c||p; const dx=p[0]-c[0],dy=p[1]-c[1],L=Math.hypot(dx,dy)||1; s+=`<text x="${p[0]+dx/L*22*u}" y="${p[1]+dy/L*22*u}" font-size="${15*u}" font-weight="700" fill="#64748b" text-anchor="middle" dominant-baseline="middle">${LET[i]||i+1}</text>`; });
-  const seen=new Set();
-  g.segs.forEach((sg,k)=>{ if(!sg.len&&!opts.edit) return; const a=sg.a,b=sg.b,nn=pr.norm(sg),mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
-    const big=sg.kind==='wall'; const anc=Math.abs(nn[0])>0.5?(nn[0]>0?'start':'end'):'middle'; const w=room.walls[sg.wall];
-    if(big){ const est=w.est; const txt=(est?'~':'')+Math.round(sg.len); const tp=[mid[0]-nn[0]*30*u,mid[1]-nn[1]*30*u];
-      if(opts.edit) s+=`<g data-wall="${sg.wall}" style="cursor:pointer"><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="transparent" stroke-width="${44*u}"/><rect x="${tp[0]-34*u}" y="${tp[1]-16*u}" width="${68*u}" height="${32*u}" rx="${8*u}" fill="${est?'#fff7ed':'#fff'}" stroke="${est?'#ea580c':'#cbd5e1'}" stroke-width="${1.5*u}"/>`;
-      s+=`<text x="${tp[0]}" y="${tp[1]+u}" font-size="${19*u}" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="${est?'#ea580c':'#1d2330'}">${txt}</text>`+(opts.edit?'</g>':''); }
-    else if(sg.f) s+=`<text x="${mid[0]+nn[0]*14*u}" y="${mid[1]+nn[1]*14*u}" font-size="${13*u}" font-weight="600" text-anchor="${anc}" dominant-baseline="middle" fill="#475569">${esc(sg.f.type.toLowerCase())} ${esc(sg.f.w)}×${esc(sg.f.d)}</text>`;
-    if(!seen.has(sg.wall)&&big){ seen.add(sg.wall); const cx=mid[0]+nn[0]*20*u,cy=mid[1]+nn[1]*20*u;
-      s+=`<circle cx="${cx}" cy="${cy}" r="${11*u}" fill="#c8102e"/><text x="${cx}" y="${cy+u}" font-size="${12*u}" fill="#fff" text-anchor="middle" dominant-baseline="middle">${sg.wall+1}</text>`;
-      (room.devs||[]).filter(d=>+d.wall===sg.wall+1&&num(d.mm)).forEach((d,k)=>{ s+=`<text x="${mid[0]+nn[0]*40*u}" y="${mid[1]+nn[1]*40*u+(k+1)*22*u}" font-size="${15*u}" font-weight="600" fill="#b45309" text-anchor="${anc}" dominant-baseline="middle">⚠ ${esc(d.kind)} ${esc(d.mm)} мм</text>`; }); }
-  });
-  (room.features||[]).filter(f=>f.type==='Колонна').forEach((f,k)=>{ const c=g.cols[k]; if(!c) return; s+=`<text x="${c[2][0]+6*u}" y="${c[2][1]+14*u}" font-size="${13*u}" font-weight="600" fill="#475569">колонна ${esc(f.w)}×${esc(f.d)}</text>`; });
-  // свои размеры
-  (room.dims||[]).forEach((d,i)=>{ s+=dimSVG(d.a,d.b,esc(d.val),u,'#7c3aed',opts.edit?`data-dim="${i}" style="cursor:pointer"`:''); });
-  if(pr.c&&!opts.draw){ const c=pr.c; s+=`<text x="${c[0]}" y="${c[1]-8*u}" font-size="${21*u}" font-weight="700" text-anchor="middle" fill="#1f3b7a">${esc(room.name)}</text><text x="${c[0]}" y="${c[1]+16*u}" font-size="${18*u}" text-anchor="middle" fill="#1f3b7a">${f2(g.area)} м²</text>`; }
-  // режим рисования
-  if(opts.draw&&opts.draw.length){ const D=opts.draw; s+=`<polyline points="${D.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#1f6feb" stroke-width="${6*u}" stroke-linejoin="round"/>`;
-    D.forEach((p,i)=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${(i?9:16)*u}" fill="${i?'#1f6feb':'#16a34a'}"/>`);
-    for(let i=1;i<D.length;i++){ const a=D[i-1],b=D[i],m=[(a[0]+b[0])/2,(a[1]+b[1])/2]; s+=`<text x="${m[0]}" y="${m[1]-12*u}" font-size="${16*u}" fill="#1f6feb" font-weight="700" text-anchor="middle">~${Math.round(Math.hypot(b[0]-a[0],b[1]-a[1]))}</text>`; } }
-  if(opts.pend) s+=`<circle cx="${opts.pend[0]}" cy="${opts.pend[1]}" r="${10*u}" fill="#7c3aed"/>`;
-  if(opts.edit) pr.ops.forEach(op=>{ const mv=opts.moveOp===op.i;
-    if(mv) s+=`<line x1="${op.p1[0]}" y1="${op.p1[1]}" x2="${op.p2[0]}" y2="${op.p2[1]}" stroke="#D3232B" stroke-width="${16*u}" stroke-dasharray="${8*u} ${5*u}" stroke-linecap="round"/>`;
-    s+=`<line data-op="${op.i}" x1="${op.p1[0]}" y1="${op.p1[1]}" x2="${op.p2[0]}" y2="${op.p2[1]}" stroke="transparent" stroke-width="${46*u}" style="cursor:grab"/>`; });
-  if(opts.moveOp!=null) g.segs.filter(sg=>sg.kind==='wall').forEach(sg=>{ s+=`<line x1="${sg.a[0]}" y1="${sg.a[1]}" x2="${sg.b[0]}" y2="${sg.b[1]}" stroke="#D3232B" stroke-opacity=".18" stroke-width="${26*u}" pointer-events="none"/>`; });
-  return s+'</svg>';
-}
-
-// ---------- расчёты: всё видно, чтобы менеджер мог сверить ----------
-const m2=v=>f2(v), mm=v=>(Math.round(v)||0).toLocaleString('ru-RU');
-function calcHTML(room){
-  const g=geom(room), b=baseGeom(room), H=num(room.height)/100; const rows=[];
-  const line=(t,f,r)=>rows.push(`<tr><td>${t}</td><td>${f}</td><td class="n"><b>${r}</b></td></tr>`);
-  // периметр
-  const parts=g.segs.filter(s=>s.len).map(s=>mm(s.len));
-  line('Периметр стен',parts.join(' + ')+' см',f2(g.perim)+' м');
-  // площадь
-  const rect=room.walls.length===4&&!g.diag&&room.walls.every(w=>Math.abs(num(w.turn??90))===90)&&num(room.walls[0].len)===num(room.walls[2].len)&&num(room.walls[1].len)===num(room.walls[3].len);
-  const bA=b.closed?Math.abs(b.poly.reduce((s,p,i,a)=>{const q=a[(i+1)%a.length];return s+p[0]*q[1]-q[0]*p[1];},0))/2/10000:0;
-  if(rect) line('Пол: основа',`${f2(num(room.walls[0].len)/100)} × ${f2(num(room.walls[1].len)/100)}`,m2(bA)+' м²');
-  else line('Пол: основа',`по координатам углов ${baseCorners(room).map((p,i)=>`${LET[i]}(${mm(p[0])}; ${mm(p[1])})`).join(', ')} — формула площади многоугольника`,b.closed?m2(bA)+' м²':'контур не замкнут');
-  let A=bA;
-  (room.features||[]).forEach(f=>{ const w=num(f.w)/100,d=num(f.d)/100; if(!w||!d) return; const v=w*d;
-    if(f.type==='Выступ'){A-=v;line('− выступ',`${f2(w)} × ${f2(d)}`,'−'+m2(v)+' м²');}
-    if(f.type==='Ниша'){A+=v;line('+ ниша',`${f2(w)} × ${f2(d)}`,'+'+m2(v)+' м²');}
-    if(f.type==='Колонна'){A-=v;line('− колонна',`${f2(w)} × ${f2(d)}`,'−'+m2(v)+' м²');} });
-  line('<b>Пол = потолок</b>','',m2(g.area)+' м²');
-  // диагонали и углы
-  const bc=baseCorners(room);
-  if(b.closed&&bc.length>=4){ const ds=[]; for(let i=0;i<bc.length;i++) for(let j=i+2;j<bc.length;j++){ if(i===0&&j===bc.length-1) continue; ds.push([i,j]); }
-    ds.forEach(([i,j])=>{ const v=Math.hypot(bc[j][0]-bc[i][0],bc[j][1]-bc[i][1]); line(`Диагональ ${LET[i]}–${LET[j]}`,'по плану',mm(v)+' см'); });
-    if(g.diag) line('Диагональ А–В (замер)','введена менеджером',mm(num(room.diag))+' см');
-    else if(bc.length===4){ const d1=Math.hypot(bc[2][0]-bc[0][0],bc[2][1]-bc[0][1]),d2=Math.hypot(bc[3][0]-bc[1][0],bc[3][1]-bc[1][1]); if(Math.abs(d1-d2)<1) rows.push(`<tr><td colspan="3" style="color:var(--mut)">Если на объекте диагонали А–В и Б–Г отличаются больше чем на 1–2 см, углы не 90°: введите замеренную диагональ в карточке комнаты.</td></tr>`); }
-    line('Углы',b.angles.slice(0,bc.length).map((a,i)=>`${LET[(i+1)%bc.length]}: ${a.toFixed(1).replace('.',',')}°`).join(', '),''); }
-  // стены
-  let W=g.perim*H; line('Стены: периметр × высота',`${f2(g.perim)} × ${f2(H)}`,m2(W)+' м²');
-  (room.openings||[]).forEach(o=>{ const w=num(o.w)/100,h=num(o.h)/100; line(`− ${o.type.toLowerCase()} (стена ${o.wall})`,`${f2(w)} × ${f2(h)}`,'−'+m2(w*h)+' м²'); });
-  (room.features||[]).filter(f=>f.type==='Колонна').forEach(f=>{ const p=2*(num(f.w)+num(f.d))/100; line('+ колонна (обшивка)',`${f2(p)} × ${f2(H)}`,'+'+m2(p*H)+' м²'); });
-  line('<b>Стены без проёмов</b>','',m2(g.walls)+' м²');
-  // откосы, плинтус
-  const win=(room.openings||[]).filter(o=>o.type==='Окно'||o.type==='Балконный блок');
-  if(win.length) line('Откосы',win.map(o=>`${f2(num(o.w)/100)} + 2 × ${f2(num(o.h)/100)}`).join(' + '),f2(g.slopes)+' м');
-  const doors=(room.openings||[]).filter(o=>o.type!=='Окно');
-  line('Плинтус',`${f2(g.perim)}${g.cols.length?' + колонны':''}${doors.length?' − двери '+doors.map(o=>f2(num(o.w)/100)).join(' − '):''}`,f2(g.plinth)+' м');
-  // свои размеры
-  (room.dims||[]).forEach(d=>{ const v=Math.hypot(d.b[0]-d.a[0],d.b[1]-d.a[1]); const df=num(d.val)-v; line('Размер (замер)',`по плану ${mm(v)} см${Math.abs(df)>=2?` <span class="warn">расходится на ${mm(df)} см</span>`:''}`,esc(d.val)+' см'); });
-  if(room.walls.length>2&&g.closed&&g.gap>=1) rows.push(`<tr><td colspan="3" style="color:var(--mut)">Невязка контура ${mm(g.gap)} см (стены не идеально параллельны) — в пределах допуска.</td></tr>`);
-  if(room.walls.length>2&&!g.closed&&!g.diag) rows.push(`<tr><td colspan="3" class="warn">Контур не сходится на ${mm(g.gap)} см: площадь неточная, проверьте стены.</td></tr>`);
-  return `<table class="calc">${rows.join('')}</table>`;
-}
-
-// ---------- окно ввода числа ----------
-function ask(title,val,{del=false,hint=''}={}){ return new Promise(res=>{ const d=document.createElement('div'); d.className='modal';
-  d.innerHTML=`<div class="box"><h2>${title}</h2>${hint?`<p style="color:var(--mut);margin:0 0 8px">${hint}</p>`:''}<input id="mval" type="number" inputmode="decimal" value="${val??''}"><div class="row" style="margin-top:14px"><button class="btn" id="mok" style="flex:1">Готово</button><button class="btn sec" id="mno">Отмена</button>${del?'<button class="btn sec" id="mdel">Удалить</button>':''}</div></div>`;
-  document.body.appendChild(d); const i=d.querySelector('#mval'); setTimeout(()=>{i.focus();i.select();},50);
-  const end=v=>{d.remove();res(v);}; d.querySelector('#mok').onclick=()=>end(i.value); d.querySelector('#mno').onclick=()=>end(null); if(del) d.querySelector('#mdel').onclick=()=>end('__del');
-  i.onkeydown=e=>{if(e.key==='Enter') end(i.value);}; }); }
-
-// ---------- рисование пальцем ----------
-function rdp(pts,eps){ if(pts.length<3) return pts; const [a,b]=[pts[0],pts[pts.length-1]]; let md=0,mi=0; const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1;
-  for(let i=1;i<pts.length-1;i++){ const d=Math.abs((b[0]-a[0])*(a[1]-pts[i][1])-(a[0]-pts[i][0])*(b[1]-a[1]))/L; if(d>md){md=d;mi=i;} }
-  return md>eps?rdp(pts.slice(0,mi+1),eps).slice(0,-1).concat(rdp(pts.slice(mi),eps)):[a,b]; }
-function snapNext(prev,p){ const dx=p[0]-prev[0],dy=p[1]-prev[1]; let L=Math.round(Math.hypot(dx,dy)/10)*10; if(L<20) return null;
-  const ang=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4); return [prev[0]+Math.round(Math.cos(ang)*L),prev[1]+Math.round(Math.sin(ang)*L)]; }
-function cornersToWalls(C){ const n=C.length, hs=C.map((p,i)=>{const q=C[(i+1)%n];return Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI;});
-  return C.map((p,i)=>{ const q=C[(i+1)%n]; let t=hs[(i+1)%n]-hs[i]; t=((t%360)+540)%360-180; return {len:String(Math.round(Math.hypot(q[0]-p[0],q[1]-p[1]))),turn:Math.round(t),est:true}; }); }
-
-// ---------- общий план квартиры ----------
-function placed(room,pr){ // перевод локальных координат комнаты в координаты квартиры
-  const p=room.pos||{x:0,y:0,rot:0}, r=(p.rot||0)*Math.PI/180, c=Math.cos(r), s=Math.sin(r);
-  return q=>[p.x+q[0]*c-q[1]*s, p.y+q[0]*s+q[1]*c];
-}
-function aptBounds(o){ let xs=[],ys=[]; o.rooms.forEach(r=>{const pr=roomPrims(r),M=placed(r,pr); pr.g.pts.forEach(q=>{const t=M(q);xs.push(t[0]);ys.push(t[1]);});}); if(!xs.length) return [0,0,100,100]; return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
-function ensurePos(o){ let x=0; o.rooms.forEach(r=>{ if(!r.pos){ const g=geom(r); const xs=g.pts.map(p=>p[0]),ys=g.pts.map(p=>p[1]); r.pos={x:x-Math.min(...xs),y:-Math.min(...ys),rot:0}; x+=Math.max(...xs)-Math.min(...xs)+120; } }); }
-function aptSVG(o,opts={}){
-  ensurePos(o); const [x0,y0,x1,y1]=opts.vb||aptBounds(o), m=120; const vb=[x0-m,y0-m,(x1-x0)+2*m,(y1-y0)+2*m];
-  const sc=1; let s=`<svg class="plan" id="apt" viewBox="${vb.join(' ')}" xmlns="http://www.w3.org/2000/svg" font-family="Manrope,system-ui,sans-serif" style="height:${opts.thumb?'100%':(opts.h||560)+'px'};touch-action:none">`;
-  o.rooms.forEach((r,i)=>{ const pr=roomPrims(r), M=placed(r,pr);
-    s+=`<g data-room="${r.id}" style="cursor:move">${primsSVG(r,pr,M,sc,{thin:true})}`;
-    if(pr.c&&!opts.thumb){ const c=M(pr.c),fs=Math.max(18,Math.min(34,Math.sqrt(pr.g.area)*9)); s+=`<text x="${c[0]}" y="${c[1]-fs*0.2}" font-size="${fs}" font-weight="700" text-anchor="middle" fill="#1f2937">${i+1}. ${esc(r.name)}</text><text x="${c[0]}" y="${c[1]+fs}" font-size="${fs*0.85}" text-anchor="middle" fill="#1f2937">${f2(pr.g.area)} м²</text>`; }
-    if(opts.sel===r.id) s+=`<polygon points="${pr.g.poly.map(q=>M(q).join(',')).join(' ')}" fill="none" stroke="#D3232B" stroke-width="6" stroke-dasharray="14 8"/>`;
-    s+='</g>'; });
-  return s+'</svg>';
 }
 
 // ---------- состояние и навигация ----------
-let state={view:'list',obj:null,roomId:null,tab:'rooms'};
-let saveT=null; async function save(){ state.obj.updated=Date.now(); await DB.put('objects',state.obj); clearTimeout(saveT); saveT=setTimeout(()=>toast('Сохранено'),500); }
+let state={view:'list',obj:null,tab:'client'};
+let saveT=null; async function save(quiet){ state.obj.updated=Date.now(); await DB.put('objects',state.obj); if(quiet) return; clearTimeout(saveT); saveT=setTimeout(()=>toast('Сохранено'),600); }
 function go(v,extra={}){ Object.assign(state,{view:v},extra); render(); window.scrollTo(0,0); }
 $('#brand').onclick=e=>{e.preventDefault(); go('list');};
-window.zksBack=()=>{ const ov=document.querySelector('.ovl,.modal,.cbox'); if(state.view==='room'){go('obj');return true;} if(state.view==='obj'){go('list');return true;} return false; };
-$('#back').onclick=()=>{ if(state.view==='room') go('obj'); else go('list'); };
-
+$('#back').onclick=()=>go('list');
+window.zksBack=()=>{ const v=document.querySelector('.v3d'); if(v){ v.close(); return true; } const m=document.querySelector('.modal'); if(m){ (m.querySelector('#mno,#cno')||m).click(); return true; } if(ed.cur.length){ ed.cur=[]; renderPlan(); return true; } if(state.view==='obj'){go('list');return true;} return false; };
 function header(t,back,action){ $('#title').textContent=t; $('#back').classList.toggle('hidden',!back);
-  const b=$('#hdrAction'); if(action){b.textContent=action[0];b.onclick=action[1];b.classList.remove('hidden');} else b.classList.add('hidden'); }
+  const b=$('#hdrAction'); if(action){b.innerHTML=action[0];b.onclick=action[1];b.classList.remove('hidden');} else b.classList.add('hidden'); }
+async function render(){ if(state.view==='list') return renderList(); return renderObj(); }
 
-async function render(){
-  if(state.view==='list') return renderList();
-  if(state.view==='obj') return renderObj();
-  if(state.view==='room') return renderRoom();
+// фото помещений хранятся отдельно, для подсчётов держим их число в памяти
+let phCount={};
+async function loadPhCount(o){ phCount={}; (await DB.all('photos')).filter(p=>p.obj===o.id).forEach(p=>phCount[p.room]=(phCount[p.room]||0)+1); }
+function progress(o){
+  const R=o.rooms, n=R.length, G=R.map(r=>geo(r,o));
+  const cl=[o.client,o.phone,o.address,o.kv].filter(Boolean).length;
+  const named=R.filter(r=>r.name&&!/^Помещение \d+$/.test(r.name)).length, ph=R.filter(r=>(phCount[r.id]||0)>=PH_MIN).length;
+  const fin=R.filter(r=>(r.fin.floor.length||r.fin.floorOwn)&&r.fin.walls.length).length;
+  return {client:cl===4?2:cl?1:0, plan:n&&G.every(g=>g.done)?2:n?1:0, rooms:n&&named===n&&ph===n?2:n?1:0, fin:n&&fin===n?2:fin?1:0, n, ph, fin_n:fin, sized:G.filter(g=>g.done).length};
 }
 
 // ---------- список замеров ----------
-function progress(o){ // готовность разделов замера: 0 — пусто, 1 — частично, 2 — готово
-  const rooms=o.rooms||[], cl=[o.client,o.phone,o.address].filter(Boolean).length;
-  const fin=rooms.filter(r=>r.fin&&['floor','walls','ceil'].every(k=>Object.keys(r.fin[k]||{}).length)).length;
-  const closed=rooms.filter(r=>geom(r).closed).length;
-  return {client:cl===3&&o.flatType?2:cl?1:0, rooms:rooms.length&&closed===rooms.length?2:rooms.length?1:0, apt:rooms.length>1&&closed===rooms.length?2:rooms.length?1:0,
-    calc:rooms.length&&closed===rooms.length?2:0, wishes:rooms.length&&fin===rooms.length?2:fin?1:0, fin, n:rooms.length};
+function newObj(){ return {id:uid(),v:2,created:Date.now(),updated:Date.now(),client:'',phone:'',address:'',kv:'',manager:MGR.cur(),height:'',rooms:[],risers:[]}; }
+function newRoom(o,C,name){ const n=C.length; return {id:uid(),name:name||`Помещение ${o.rooms.length+1}`,x:C[0][0],y:C[0][1],
+  walls:C.map((p,i)=>{ const q=C[(i+1)%n]; return {a:Math.round(Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI*10)/10,d:Math.round(Math.hypot(q[0]-p[0],q[1]-p[1])),len:''}; }),
+  openings:[],fin:{floor:[],floorOwn:'',walls:[],accent:'',accWall:[],accFin:[],accOwn:''},extra:''}; }
+function rect(o,name,x,y,w,h){ const r=newRoom(o,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],name); r.walls.forEach(wl=>wl.len=String(wl.d)); return r; }
+function demoObj(){
+  const o=newObj(); Object.assign(o,{kv:'2',risers:[{t:'k',x:185,y:555},{t:'v',x:185,y:585},{t:'k',x:835,y:415}],client:'Пример: Анна Смирнова',phone:'+7 900 000-00-00',address:'Тамбов, ул. Примерная 1, кв. 1',height:'270'});
+  const g=rect(o,'Гостиная',0,0,500,400); o.rooms.push(g); const s=rect(o,'Спальня',500,0,350,400); o.rooms.push(s);
+  const k=rect(o,'Коридор',0,400,520,140); o.rooms.push(k); const c=rect(o,'Кухня',520,400,330,320); o.rooms.push(c); const t=rect(o,'Санузел',0,540,200,180); o.rooms.push(t);
+  g.openings=[{type:'Окно',wall:'1',w:'150',h:'150',off:''},{type:'Дверь',wall:'3',w:'80',h:'200',off:'60'}];
+  s.openings=[{type:'Окно',wall:'1',w:'150',h:'150',off:''},{type:'Дверь',wall:'3',w:'80',h:'200',off:'40'}];
+  c.openings=[{type:'Окно',wall:'2',w:'120',h:'150',off:''},{type:'Дверь',wall:'4',w:'80',h:'200',off:'20'}];
+  k.openings=[{type:'Входная дверь',wall:'4',w:'90',h:'205',off:''}]; t.openings=[{type:'Дверь',wall:'1',w:'70',h:'200',off:'60'}];
+  g.fin={floor:['Ламинат'],floorOwn:'',walls:['Покраска'],accent:'да',accWall:['2'],accFin:['Декоративная штукатурка'],accOwn:'',}; g.extra='Ниша под телевизор на стене 2';
+  s.fin={floor:['Инженерная доска'],floorOwn:'',walls:['Обои','Тихие стены'],accent:'нет',accWall:[],accFin:[],accOwn:''};
+  c.fin={floor:['Керамогранит'],floorOwn:'',walls:['Покраска'],accent:'нет',accWall:[],accFin:[],accOwn:''};
+  k.fin={floor:['Кварцвинил замковый'],floorOwn:'',walls:['Обои'],accent:'нет',accWall:[],accFin:[],accOwn:''};
+  t.fin={floor:['Керамогранит'],floorOwn:'',walls:[],accent:'нет',accWall:[],accFin:[],accOwn:'Плитка'}; t.extra='Стены плиткой, инсталляция';
+  return o;
 }
-function demoObj(){ // учебный пример: двухкомнатная квартира, собирается по дверям
-  const R=(id,type,a,b)=>({id:id+uid().slice(0,5),type,name:type,height:'270',walls:[{len:a,turn:90},{len:b,turn:90},{len:a,turn:90},{len:b,turn:90}],openings:[],state:{},note:''});
-  const k=R('k','Коридор','520','130'), g=R('g','Гостиная','500','400'), s=R('s','Спальня','350','400'), c=R('c','Кухня','300','320'), t=R('t','Санузел','200','180');
-  k.openings=[{type:'Входная дверь',wall:'4',w:'90',h:'210',off:''},{type:'Дверь',wall:'1',w:'80',h:'210',off:'30',to:g.id},{type:'Дверь',wall:'1',w:'80',h:'210',off:'250',to:s.id},{type:'Дверь',wall:'2',w:'80',h:'210',off:'',to:c.id},{type:'Дверь',wall:'3',w:'70',h:'210',off:'100',to:t.id}];
-  g.openings=[{type:'Окно',wall:'1',w:'150',h:'150',off:''},{type:'Дверь',wall:'3',w:'80',h:'210',off:'50',to:k.id}]; g.features=[{type:'Выступ',wall:'1',off:'0',w:'40',d:'30'}];
-  s.openings=[{type:'Окно',wall:'1',w:'150',h:'150',off:''},{type:'Дверь',wall:'3',w:'80',h:'210',off:'200',to:k.id}];
-  c.openings=[{type:'Окно',wall:'2',w:'120',h:'150',off:''},{type:'Дверь',wall:'4',w:'80',h:'210',off:'',to:k.id}];
-  t.openings=[{type:'Дверь',wall:'1',w:'70',h:'210',off:'60',to:k.id}];
-  g.fin={floor:{'Ламинат':'по прямой'},walls:{'Покраска':'под направленный свет'},ceil:{'Натяжной MSD':'теневой профиль'}}; g.accent={walls:['2'],type:'Обои',v:'дизайнерские'};
-  s.fin={floor:{'Кварц-винил замковый':'ёлочка французская'},walls:{'Обои':'флизелиновые'},ceil:{'Натяжной MSD':'стандартный'}}; s.quiet={walls:['3'],v:'бескаркасная'};
-  c.fin={floor:{'Керамогранит':'обычный'},walls:{'Покраска':'без направленного света'},ceil:{'Натяжной MSD':'стандартный'}}; c.water=2;
-  t.fin={floor:{'Керамогранит':'обычный'},walls:{'Плитка':'керамогранит'},ceil:{'Натяжной MSD':'стандартный'}}; t.water=5;
-  return {id:uid(),created:Date.now(),updated:Date.now(),client:'Пример: Анна Смирнова',phone:'+7 900 000-00-00',address:'Тамбов, ул. Примерная 1, кв. 1',manager:localStorage.getItem('zks-manager')||'',rooms:[k,g,s,c,t],flatType:'Двухкомнатная',notes2:'Учебный пример, можно удалить',budget:''};
-}
+// у каждого менеджера своя база: список показывает только его замеры
+const MGR={ mem:{cur:'',list:[]},
+  list(){ try{ return JSON.parse(localStorage.getItem('zks-managers')||'[]'); }catch(e){ return MGR.mem.list; } },
+  cur(){ try{ return localStorage.getItem('zks-manager')||''; }catch(e){ return MGR.mem.cur; } },
+  add(n){ const l=MGR.list(); if(n&&!l.includes(n)){ l.push(n); try{ localStorage.setItem('zks-managers',JSON.stringify(l)); }catch(e){ MGR.mem.list=l; } } },
+  set(n){ MGR.add(n); try{ localStorage.setItem('zks-manager',n); }catch(e){ MGR.mem.cur=n; } } };
+let q='';
 async function renderList(){
-  header('',false,['Резервная копия',backup]);
-  const objs=(await DB.all('objects')).sort((a,b)=>b.updated-a.updated);
+  header('',false,[ic('down',18)+' Резервная копия',backup]);
+  const all=await DB.all('objects'); const mgr=MGR.cur();
+  all.forEach(o=>MGR.add(o.manager));
+  if(!mgr) return pickManager();
+  const mine=all.filter(o=>(o.manager||'')===mgr).sort((a,b)=>b.updated-a.updated);
   const m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0);
-  const month=objs.filter(o=>o.created>=m0.getTime()), area=objs.reduce((s,o)=>s+o.rooms.reduce((t,r)=>t+geom(r).area,0),0);
-  const mgr=localStorage.getItem('zks-manager')||'';
+  const area=o=>o.rooms.reduce((s,r)=>s+geo(r,o).area,0);
   $('#app').innerHTML=`
   <section class="hero"><div class="eyebrow">${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div>
-   <h1>${mgr?esc(mgr.split(' ')[0])+', готовы':'Готовы'} к <b>замеру</b>?</h1>
-   <div class="kpis"><div class="kpi"><b>${objs.length}</b><span>замеров всего</span></div><div class="kpi"><b>${month.length}</b><span>в этом месяце</span></div><div class="kpi"><b>${Math.round(area)}</b><span>м² обмерено</span></div></div>
-   <button class="btn" id="new">${ic('plus',22)} Новый замер</button></section>
-  <div class="row" style="margin:6px 2px 12px"><h2 style="flex:1;margin:0">Замеры</h2></div>
-  ${objs.length?`<div class="objs">${objs.map(o=>{const ar=o.rooms.reduce((s,r)=>s+geom(r).area,0), pg=progress(o); return `<div class="obj" data-id="${o.id}">
-     <div class="th">${o.rooms.some(r=>r.walls.length)?(o.manualPlan||autoLayout(o),aptSVG(o,{thumb:true})):'нет плана'}</div>
-     <div style="min-width:0"><div class="nm">${esc(o.client||'Без имени')}</div><div class="ad">${esc(o.address||'Адрес не указан')}</div>
-      <div class="meta"><span class="tag">${new Date(o.created).toLocaleDateString('ru-RU')}</span>${o.flatType?`<span class="tag">${esc(o.flatType)}</span>`:''}<span class="tag">${o.rooms.length} пом.</span><span class="tag">${f2(ar)} м²</span>
-      <span class="tag ${pg.wishes===2?'ok':pg.n?'warn':''}">отделка ${pg.fin}/${pg.n}</span></div></div></div>`}).join('')}</div>`
-   :`<div class="card empty"><b style="color:var(--ink);font-size:17px">Замеров пока нет</b><br>Нажмите «Новый замер», чтобы начать первый объект,<br>или откройте пример заполненной квартиры.<div style="margin-top:14px"><button class="btn sec" id="demo">${ic('plan')} Открыть пример</button></div></div>`}
+   <h1>${esc(mgr.split(' ')[0])}, готовы к <b>замеру</b>?</h1>
+   <div class="kpis"><div class="kpi"><b>${mine.length}</b><span>ваших замеров</span></div><div class="kpi"><b>${mine.filter(o=>o.created>=m0.getTime()).length}</b><span>в этом месяце</span></div><div class="kpi"><b>${Math.round(mine.reduce((s,o)=>s+area(o),0))}</b><span>м² обмерено</span></div></div>
+   <div class="row"><button class="btn" id="new">${ic('plus',22)} Новый замер</button><button class="btn ghost hero-sw" id="sw">${ic('user',18)} ${esc(mgr)} · сменить</button></div></section>
+  <div class="row" style="margin:6px 2px 12px;gap:12px"><h2 style="margin:0">Мои замеры</h2><div class="search" style="flex:1;min-width:220px"><input id="q" type="search" placeholder="Поиск: имя, адрес или телефон" value="${esc(q)}"></div></div>
+  <div id="objs"></div>
   <div class="row" style="margin-top:16px"><label class="btn sec sm" style="margin:0">${ic('down',18)} Восстановить из резервной копии<input type="file" id="restore" accept=".json,application/json" class="hidden"></label></div>`;
-  $('#new').onclick=async()=>{ const o={id:uid(),created:Date.now(),updated:Date.now(),client:'',phone:'',address:'',manager:localStorage.getItem('zks-manager')||'',rooms:[],flatType:'',notes2:'',budget:''}; await DB.put('objects',o); go('obj',{obj:o,tab:'client'}); };
-  const dm=$('#demo'); if(dm) dm.onclick=async()=>{ const o=demoObj(); await DB.put('objects',o); go('obj',{obj:o,tab:'apt'}); };
-  document.querySelectorAll('.obj').forEach(el=>el.onclick=async()=>go('obj',{obj:await DB.get('objects',el.dataset.id),tab:'rooms'}));
-  $('#restore').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const d=JSON.parse(await f.text()); for(const o of d.objects||[]) await DB.put('objects',o); for(const p of d.photos||[]) await DB.put('photos',p); toast('Восстановлено замеров: '+(d.objects||[]).length); render(); };
+  const draw=()=>{ const t=q.trim().toLowerCase(), dig=t.replace(/\D/g,'');
+    const L=mine.filter(o=>!t||[o.client,o.address].join(' ').toLowerCase().includes(t)||(dig.length>2&&String(o.phone).replace(/\D/g,'').includes(dig)));
+    $('#objs').innerHTML=L.length?`<div class="objs">${L.map(o=>`<div class="obj" data-id="${o.id}">
+     <div class="th">${o.rooms.length?planSVG(o,{k:fitVB(o.rooms,110)[2]/260}):'нет плана'}</div>
+     <div style="min-width:0"><div class="nm">${esc(o.client||'Без имени')}</div><div class="ad">${esc(o.address||'Адрес не указан')}</div>
+      <div class="meta"><span class="tag">${new Date(o.created).toLocaleDateString('ru-RU')}</span><span class="tag">${o.rooms.length} пом.</span><span class="tag">${f2(area(o))} м²</span></div></div></div>`).join('')}</div>`
+     :mine.length?`<div class="card empty">Ничего не нашлось по запросу «${esc(q)}».</div>`
+     :`<div class="card empty"><b style="color:var(--ink);font-size:17px">Замеров пока нет</b><br>Нажмите «Новый замер», чтобы начать первый объект,<br>или откройте пример заполненной квартиры.<div style="margin-top:14px"><button class="btn sec" id="demo">${ic('plan')} Открыть пример</button></div></div>`;
+    $$('.obj').forEach(el=>el.onclick=async()=>go('obj',{obj:await DB.get('objects',el.dataset.id),tab:'plan'}));
+    const dm=$('#demo'); if(dm) dm.onclick=async()=>{ const o=demoObj(); await DB.put('objects',o); go('obj',{obj:o,tab:'plan'}); }; };
+  draw(); $('#q').oninput=e=>{ q=e.target.value; draw(); };
+  $('#new').onclick=async()=>{ const o=newObj(); await DB.put('objects',o); go('obj',{obj:o,tab:'client'}); };
+  $('#sw').onclick=()=>pickManager();
+  $('#restore').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); for(const o of d.objects||[]) await DB.put('objects',o); for(const p of d.photos||[]) await DB.put('photos',p); toast('Восстановлено замеров: '+(d.objects||[]).length); }catch(err){ toast('Файл не подходит'); } render(); };
 }
-
+function pickManager(){
+  header('',false,null); const l=MGR.list(), cur=MGR.cur();
+  $('#app').innerHTML=`<section class="hero"><div class="eyebrow">Замер КС</div><h1>Кто проводит <b>замер</b>?</h1>
+   ${l.length?`<div class="chips mgr">${l.map(n=>`<span class="chip ${n===cur?'on':''}" data-m="${esc(n)}">${ic('user',18)} ${esc(n)}</span>`).join('')}</div>`:''}
+   <div class="row" style="margin-top:14px;max-width:560px"><input id="mn" placeholder="${l.length?'Или новый менеджер: имя и фамилия':'Ваше имя и фамилия'}" style="flex:1;min-width:200px"><button class="btn" id="mok">${l.length?'Добавить':'Начать'}</button></div>
+   <p style="color:#ffffffa6;margin:12px 0 0;font-size:14px">У каждого менеджера своя база замеров, чужие объекты не смешиваются.</p></section>`;
+  $$('[data-m]').forEach(el=>el.onclick=()=>{ MGR.set(el.dataset.m); q=''; go('list'); });
+  const ok=()=>{ const n=$('#mn').value.trim(); if(!n){ $('#mn').focus(); return; } MGR.set(n); q=''; go('list'); };
+  $('#mok').onclick=ok; $('#mn').onkeydown=e=>{ if(e.key==='Enter') ok(); };
+}
 async function backup(){
-  const d={app:'zamer-ks',v:1,date:new Date().toISOString(),objects:await DB.all('objects'),photos:await DB.all('photos')};
+  const d={app:'zamer-ks',v:2,date:new Date().toISOString(),objects:await DB.all('objects'),photos:await DB.all('photos')};
   download(new Blob([JSON.stringify(d)],{type:'application/json'}),`zamer-backup-${new Date().toISOString().slice(0,10)}.json`);
 }
 function download(blob,name){ if(window.ZKS&&ZKS.saveFile){ const fr=new FileReader(); fr.onload=()=>{ const ok=ZKS.saveFile(name,blob.type||'application/octet-stream',String(fr.result).split(',')[1]); toast(ok?'Сохранено в «Загрузки»: '+name:'Не удалось сохранить файл'); }; fr.readAsDataURL(blob); return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000); }
 
 // ---------- карточка объекта ----------
+const TABS=[['client','Клиент','user'],['plan','1. План','pen'],['rooms','2. Помещения','rooms'],['fin','3. Отделка','roller'],['total','Итоги','sum']];
 async function renderObj(){
-  const o=state.obj; header(o.client||'Новый замер',true,['Паспорт PDF',()=>passport(o)]);
-  const tabs=[['client','Клиент','user'],['rooms','Помещения','rooms'],['apt','План квартиры','plan'],['calc','Расчёты','calc'],['wishes','Вид чистовой отделки','roller'],['photos','Фото','photo'],['total','Итоги','sum']];
-  const pg=progress(o);
-  $('#app').innerHTML=`<nav class="tabs" id="tabsBar">${tabs.map(([k,t,i])=>`<span class="chip ${state.tab===k?'on':''}" data-tab="${k}">${ic(i,18)}${t}${pg[k]!==undefined?`<i class="dot ${pg[k]===2?'ok':pg[k]?'part':''}"></i>`:''}</span>`).join('')}</nav><div id="tab"></div>`;
-  document.querySelectorAll('[data-tab]').forEach(el=>el.onclick=()=>{state.tab=el.dataset.tab;renderObj();});
-  const on=document.querySelector('.tabs .chip.on'); on&&on.scrollIntoView({inline:'center',block:'nearest'});
-  ({client:tabClient,rooms:tabRooms,apt:tabApt,calc:tabCalc,wishes:tabWishes,photos:tabPhotos,total:tabTotal})[state.tab]();
+  const o=state.obj; await loadPhCount(o); header(o.client||'Новый замер',true,['Паспорт PDF',()=>passport(o)]);
+  $('#app').innerHTML=`<nav class="tabs" id="tabsBar"></nav><div id="tab"></div>`;
+  drawTabs();
+  ({client:tabClient,plan:tabPlan,rooms:tabRooms,fin:tabFin,total:tabTotal})[state.tab]();
 }
-
-function bind(el,obj,key,after){ el.oninput=()=>{obj[key]=el.value; save(); after&&after();}; }
+function drawTabs(){ const pg=progress(state.obj);
+  $('#tabsBar').innerHTML=TABS.map(([k,t,i])=>`<span class="chip ${state.tab===k?'on':''}" data-tab="${k}">${ic(i,18)}${t}${pg[k]!==undefined?`<i class="dot ${pg[k]===2?'ok':pg[k]?'part':''}"></i>`:''}</span>`).join('');
+  $$('[data-tab]').forEach(el=>el.onclick=()=>{ state.tab=el.dataset.tab; ed.cur=[]; renderObj(); window.scrollTo(0,0); });
+  const on=$('.tabs .chip.on'); on&&on.scrollIntoView({inline:'center',block:'nearest'}); }
+const nextBtn=(tab,t)=>`<div class="row" style="margin-top:4px;justify-content:flex-end"><button class="btn blue" data-next="${tab}">${t} ›</button></div>`;
+function bindNext(){ $$('[data-next]').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.next; renderObj(); window.scrollTo(0,0); }); }
 
 function tabClient(){
   const o=state.obj;
   $('#tab').innerHTML=`<div class="card"><h2>Клиент и объект</h2><div class="grid">
-   ${[['client','Имя клиента'],['phone','Телефон'],['address','Адрес, квартира'],['manager','Менеджер'],['budget','Бюджет клиента, ₽']].map(([k,t])=>`<div><label>${t}</label><input data-k="${k}" value="${esc(o[k])}" ${k==='phone'?'type="tel"':''}${k==='budget'?'inputmode="numeric"':''}></div>`).join('')}
-   </div><h3>Тип помещения</h3><div class="chips">${FLAT_TYPES.map(t=>`<span class="chip ${o.flatType===t?'on':''}" data-ft2="${t}">${t}</span>`).join('')}</div>
-   <div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn blue" id="toRooms">Дальше: помещения ›</button><button class="btn ghost" id="delObj">Удалить замер</button></div></div>`;
-  document.querySelectorAll('[data-k]').forEach(el=>bind(el,o,el.dataset.k,()=>{ if(el.dataset.k==='manager') localStorage.setItem('zks-manager',el.value); if(el.dataset.k==='client') $('#title').textContent=el.value||'Новый замер'; }));
-  document.querySelectorAll('[data-ft2]').forEach(el=>el.onclick=()=>{ o.flatType=o.flatType===el.dataset.ft2?'':el.dataset.ft2; const n0=o.rooms.length; applyFlatType(o); save(); renderObj(); const n=o.rooms.length; if(o.flatType) toast(`Помещения: ${n}${n>n0?' (добавлено '+(n-n0)+')':''}`); });
-  $('#toRooms').onclick=()=>{state.tab='rooms';renderObj();};
+   ${[['client','Имя клиента'],['phone','Телефон'],['address','Адрес, квартира']].map(([k,t])=>`<div><label>${t}</label><input data-k="${k}" value="${esc(o[k])}" ${k==='phone'?'type="tel" inputmode="tel"':''}></div>`).join('')}
+   <div><label>Менеджер</label><select id="mgrSel">${[...new Set([...MGR.list(),o.manager].filter(Boolean))].map(n=>`<option ${n===o.manager?'selected':''}>${esc(n)}</option>`).join('')}</select></div>
+   </div><label style="margin-top:16px">Сколько комнат в квартире</label><div class="chips" id="kvSel">${KV.map(v=>`<span class="chip ${o.kv===v?'on':''}" data-kv="${v}">${v==='Студия'?v:v+(v==='1'?' комната':v==='5+'?' комнат':' комнаты')}</span>`).join('')}</div>
+   <div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn ghost" id="delObj">${ic('trash',18)} Удалить замер</button><button class="btn blue" data-next="plan">Дальше: план ›</button></div></div>`;
+  $$('[data-k]').forEach(el=>el.oninput=()=>{ o[el.dataset.k]=el.value; save(true); if(el.dataset.k==='client') $('#title').textContent=el.value||'Новый замер'; drawTabs(); });
+  $('#mgrSel').onchange=e=>{ o.manager=e.target.value; save(); };
+  $$('[data-kv]').forEach(el=>el.onclick=()=>{ o.kv=el.dataset.kv; save(); tabClient(); drawTabs(); });
+  bindNext();
   $('#delObj').onclick=async()=>{ if(!await confirmBox('Удалить замер «'+esc(o.client||'Без имени')+'» вместе с фото? Это нельзя отменить.','Удалить')) return;
     for(const ph of (await DB.all('photos')).filter(x=>x.obj===o.id)) await DB.del('photos',ph.id); await DB.del('objects',o.id); go('list'); toast('Замер удалён'); };
 }
 
+// ---------- 1. План: рисуем пальцем, вносим размеры с рулетки ----------
+let ed={mode:'draw',cur:[],sel:null,vb:null,rt:'k'};
+const HINT={
+  draw:'Обведите пальцем контур комнаты одним движением или ставьте углы по очереди. Линии сами выравниваются. Нажмите на зелёную точку, чтобы замкнуть. Потом рисуйте следующую комнату.',
+  size:'Нажмите на стену и впишите размер с рулетки. Приложение само предложит следующую стену. Оранжевые «?» ещё не измерены. Окна и двери тяните пальцем вдоль стены или на другую стену.',
+  riser:'Выберите, какой стояк, и нажмите на плане, где он стоит. Стояк можно тянуть пальцем. Нажмите на стояк, чтобы удалить.',
+  move:'Перетащите комнату пальцем. Рядом с соседней она прилипнет углом. Окна и двери тоже тянутся пальцем.'};
+function tabPlan(){
+  const o=state.obj; if(!o.rooms.length&&ed.mode!=='draw') ed.mode='draw';
+  $('#tab').innerHTML=`<div class="card"><div class="row" style="align-items:flex-end;gap:14px">
+     <div style="flex:1;min-width:240px"><label>Высота потолков, одна на всю квартиру</label><div class="unit"><input id="hgt" type="number" inputmode="decimal" value="${esc(o.height)}" placeholder="270"><span>см</span></div></div>
+     <div class="stat" id="planStat" style="flex:2;min-width:300px"></div></div></div>
+   <div class="card"><div class="row" id="tools"></div><p class="hint" id="hint"></p><div id="planBox"></div><div id="roomChips" class="chips" style="margin-top:12px"></div></div>
+   ${nextBtn('rooms','Дальше: помещения')}`;
+  $('#hgt').oninput=e=>{ o.height=e.target.value; save(true); planStat(); drawTabs(); };
+  bindNext(); renderPlan();
+  opDrag($('#planBox'),()=>ed.mode!=='draw'&&!ed.cur.length,key=>{ $('#planBox').innerHTML=planSVG(o,{vb:ed.vb,k:ed.k,sel:ed.sel,dragOp:key}); bindPlan.rebind(); },()=>renderPlan());
+}
+function planStat(){ const o=state.obj, G=o.rooms.map(r=>geo(r,o)), done=G.filter(g=>g.done).length;
+  $('#planStat').innerHTML=`${o.kv?`<div><b>${esc(o.kv)}</b><span>${o.kv==='Студия'?'тип':'комнат'}</span></div>`:''}<div><b>${o.rooms.length}</b><span>помещений</span></div><div><b>${(o.risers||[]).length}</b><span>стояков</span></div><div><b>${done}/${o.rooms.length}</b><span>с размерами</span></div><div><b>${f2(G.reduce((s,g)=>s+g.area,0))}</b><span>м² пола</span></div>`; }
+function renderPlan(){
+  const o=state.obj; if(!$('#planBox')) return;
+  const box=$('#planBox'), W=Math.max(320,box.clientWidth||900);
+  if(!ed.cur.length||!ed.vb){ const f=fitVB(o.rooms,o.rooms.length?170:0,1000,620); ed.vb=f; }
+  const k=ed.vb[2]/W*1.0; ed.k=k;
+  box.innerHTML=planSVG(o,{vb:ed.vb,k:Math.max(k,ed.vb[3]/(box.clientHeight||560)),sel:ed.sel,draw:ed.cur});
+  ed.k=Math.max(k,ed.vb[3]/(box.clientHeight||560));
+  const drawing=ed.cur.length>0, sel=o.rooms.find(r=>r.id===ed.sel);
+  $('#tools').innerHTML=`${[['draw','pen','Нарисовать комнату'],['size','ruler','Размеры'],['riser','drop','Стояки'],['move','hand','Двигать']].map(([m,i,t])=>`<span class="chip ${ed.mode===m?'on':''}" data-mode="${m}">${ic(i)}${t}</span>`).join('')}
+    ${ed.mode==='riser'&&!drawing?Object.entries(RIS).map(([t,T])=>`<span class="chip sm ${ed.rt===t?'on':''}" data-rt="${t}"><i class="risdot" style="background:${T.c}">${T.s}</i>${T.n}</span>`).join(''):''}
+    <span style="flex:1"></span>
+    ${!drawing&&o.rooms.length?`<button class="btn blue sm" id="v3">${ic('cube',18)} 3D</button>`:''}
+    ${drawing?`<button class="btn sec sm" id="undoPt">${ic('undo',18)} Убрать точку</button><button class="btn sm" id="closeR" ${ed.cur.length<3?'disabled':''}>${ic('check',18)} Замкнуть</button><button class="btn sec sm" id="cancelR">Отмена</button>`:''}
+    ${!drawing&&sel?`<span class="tag" style="font-size:14px">${esc(sel.name)}</span><button class="btn sec sm" id="rotR">${ic('rotate',18)} Повернуть</button><button class="btn sec sm" id="delR">${ic('trash',18)} Удалить</button>`:''}`;
+  $('#hint').textContent=drawing?`Точек: ${ed.cur.length}. Продолжайте вести стены или нажмите на зелёную точку, чтобы замкнуть комнату.`:HINT[ed.mode];
+  $('#roomChips').innerHTML=o.rooms.map(r=>{ const g=geo(r,o); return `<span class="chip sm ${ed.sel===r.id?'on':''}" data-rc="${r.id}">${esc(r.name)} <small style="opacity:.75">${g.done?f2(g.area)+' м²':'размеры '+g.sized+'/'+g.n}</small></span>`; }).join('');
+  $$('[data-mode]').forEach(el=>el.onclick=()=>{ ed.mode=el.dataset.mode; ed.cur=[]; renderPlan(); });
+  $$('[data-rt]').forEach(el=>el.onclick=()=>{ ed.rt=el.dataset.rt; renderPlan(); });
+  $$('[data-rc]').forEach(el=>el.onclick=()=>{ ed.sel=el.dataset.rc; if(ed.mode==='draw') ed.mode='size'; renderPlan(); const r=o.rooms.find(x=>x.id===ed.sel); const i=r.walls.findIndex(w=>!num(w.len)); if(i>=0) sizeWall(r,i); });
+  const v3=$('#v3'); if(v3) v3.onclick=()=>view3d(o);
+  const u=$('#undoPt'); if(u) u.onclick=()=>{ ed.cur.pop(); renderPlan(); };
+  const c=$('#closeR'); if(c) c.onclick=()=>closeRoom();
+  const x=$('#cancelR'); if(x) x.onclick=()=>{ ed.cur=[]; renderPlan(); };
+  const rt=$('#rotR'); if(rt) rt.onclick=()=>{ sel.walls.forEach(w=>w.a=(w.a+90)%360); save(); renderPlan(); };
+  const dl=$('#delR'); if(dl) dl.onclick=async()=>{ if(!await confirmBox(`Удалить «${esc(sel.name)}» вместе с окнами, дверями и фото?`,'Удалить')) return;
+    o.rooms=o.rooms.filter(r=>r!==sel); for(const p of (await DB.all('photos')).filter(p=>p.room===sel.id)) await DB.del('photos',p.id); ed.sel=null; await save(); renderObj(); };
+  planStat(); bindPlan();
+}
+function svgPt(svg,e){ const m=svg.getScreenCTM().inverse(); const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m); return [p.x,p.y]; }
+function allCorners(except){ return state.obj.rooms.filter(r=>r.id!==except).flatMap(r=>pts(r)); }
+function nearCorner(p,thr,except){ let best=null,bd=thr; for(const q of allCorners(except)){ const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d;best=q;} } return best; }
+// 'near' — точка легла рядом с началом контура: спрашиваем, замкнуть ли комнату
+function addCorner(p,force){
+  const C=ed.cur, k=ed.k, R=55*k;
+  if(!C.length){ const q=nearCorner(p,22*k); C.push(q?[q[0],q[1]]:[Math.round(p[0]/5)*5,Math.round(p[1]/5)*5]); return false; }
+  if(!force&&C.length>=3&&Math.hypot(p[0]-C[0][0],p[1]-C[0][1])<R) return 'near';
+  let q=snapNext(C[C.length-1],p); if(!q) return false;
+  const nc=nearCorner(q,18*k); if(nc) q=[nc[0],nc[1]];
+  if(!force&&C.length>=3&&Math.hypot(q[0]-C[0][0],q[1]-C[0][1])<R) return 'near';
+  C.push(q); return false;
+}
+async function feed(P){
+  for(const q of P){ if(addCorner(q)!=='near') continue;
+    renderPlan(); const g=$('#planBox circle'); g&&g.setAttribute('r',String(14*ed.k));
+    if(await confirmBox('Последняя точка рядом с началом. Замкнуть комнату?','Замкнуть',true)){ await closeRoom(); return; }
+    addCorner(q,true); }
+  renderPlan();
+}
+async function closeRoom(){
+  const o=state.obj, C=ed.cur; if(C.length>3&&Math.hypot(C[C.length-1][0]-C[0][0],C[C.length-1][1]-C[0][1])<30*ed.k) C.pop(); // лишняя точка у самого начала
+  if(C.length<3){ toast('Нужно хотя бы 3 угла'); return; }
+  const r=newRoom(o,ed.cur); if(Math.abs(sarea(ed.cur))<2000){ toast('Слишком маленький контур'); ed.cur=[]; renderPlan(); return; }
+  o.rooms.push(r); ed.cur=[]; ed.sel=r.id; await save(true); toast(`${r.name} добавлено`); renderPlan(); drawTabs();
+}
+async function sizeWall(r,i){
+  const o=state.obj;
+  while(i>=0&&i<r.walls.length){
+    ed.sel=r.id; renderPlan(); const hl=$$(`[data-wall="${r.id}:${i}"]`); hl.forEach(el=>{ if(el.tagName==='line'){ el.setAttribute('stroke','#D3232B'); el.setAttribute('stroke-opacity','.7'); el.setAttribute('stroke-width',String(14*ed.k)); } });
+    const rest=r.walls.findIndex((w,j)=>j>i&&!num(w.len));
+    const res=await ask(`${esc(r.name)} · стена ${i+1}`,r.walls[i].len,{hint:'Длина по рулетке',next:rest>=0});
+    if(!res) break; if(res.v!==''){ r.walls[i].len=String(Math.round(num(res.v))); }
+    await save(true); if(!res.go) break; i=rest;
+  }
+  renderPlan(); drawTabs();
+}
+function bindPlan(){
+  const o=state.obj, box=$('#planBox'), svg=box.querySelector('svg'); let path=null, drag=null, rdrag=null;
+  const pv=()=>box.querySelector('#pv');
+  svg.onpointerdown=async e=>{
+    const p=svgPt(box.querySelector('svg'),e);
+    if(ed.mode==='draw'){ e.preventDefault(); svg.setPointerCapture(e.pointerId); path=[p]; return; }
+    const rg=e.target.closest&&e.target.closest('[data-ris]');
+    if(rg&&(ed.mode==='riser'||ed.mode==='move')){ e.preventDefault(); svg.setPointerCapture(e.pointerId); const i=+rg.dataset.ris, q=o.risers[i]; rdrag={i,q,p0:p,x0:q.x,y0:q.y}; return; }
+    if(ed.mode==='riser'){ e.preventDefault(); (o.risers=o.risers||[]).push({t:ed.rt,x:Math.round(p[0]),y:Math.round(p[1])}); ed.skip=true; await save(true); renderPlan(); const q=o.risers[o.risers.length-1], r=risRoom(o,q); toast(`${RIS[q.t].n}: стояк поставлен${r?' ('+r.name+')':''}`); return; }
+    if(ed.mode==='move'){ const pg=e.target.closest('[data-room]')||(()=>{ const r=o.rooms.find(r=>inPoly(p,pts(r))); return r&&{dataset:{room:r.id}}; })();
+      if(pg){ e.preventDefault(); svg.setPointerCapture(e.pointerId); const r=o.rooms.find(x=>x.id===pg.dataset.room); drag={r,p0:p,x0:r.x,y0:r.y}; ed.sel=r.id; } }
+  };
+  svg.onpointermove=e=>{
+    if(path){ const p=svgPt(box.querySelector('svg'),e); path.push(p); const C=ed.cur, k=ed.k;
+      let h=`<polyline points="${path.map(q=>q.join(',')).join(' ')}" fill="none" stroke="#2F6FDB" stroke-opacity=".5" stroke-width="${3*k}" stroke-dasharray="${8*k} ${6*k}"/>`;
+      const last=C.length?C[C.length-1]:null, sp=last&&snapNext(last,p);
+      if(sp) h+=`<line x1="${last[0]}" y1="${last[1]}" x2="${sp[0]}" y2="${sp[1]}" stroke="#D3232B" stroke-width="${3*k}"/><text x="${sp[0]+10*k}" y="${sp[1]-10*k}" font-size="${14*k}" font-weight="800" fill="#D3232B">~${cm(Math.hypot(sp[0]-last[0],sp[1]-last[1]))}</text>`;
+      pv().innerHTML=h; return; }
+    if(rdrag){ const p=svgPt(box.querySelector('svg'),e); if(!rdrag.moved&&Math.hypot(p[0]-rdrag.p0[0],p[1]-rdrag.p0[1])<6*ed.k) return; rdrag.moved=true; rdrag.q.x=Math.round(rdrag.x0+p[0]-rdrag.p0[0]); rdrag.q.y=Math.round(rdrag.y0+p[1]-rdrag.p0[1]);
+      box.innerHTML=planSVG(o,{vb:ed.vb,k:ed.k,sel:ed.sel,dragRis:rdrag.i}); bindPlan.rebind(); return; }
+    if(drag){ const p=svgPt(box.querySelector('svg'),e); drag.r.x=drag.x0+p[0]-drag.p0[0]; drag.r.y=drag.y0+p[1]-drag.p0[1]; drag.moved=true;
+      const keep=ed.vb; box.innerHTML=planSVG(o,{vb:keep,k:ed.k,sel:ed.sel}); bindPlan.rebind(); }
+  };
+  svg.onpointerup=async e=>{
+    if(rdrag){ const d=rdrag; rdrag=null; ed.skip=true; setTimeout(()=>ed.skip=false,350);
+      if(d.moved){ await save(true); const r=risRoom(o,d.q); toast(`Стояк перенесён${r?' ('+r.name+')':''}`); }
+      else if(ed.mode==='riser'&&await confirmBox(`Удалить стояк «${RIS[d.q.t].n}»?`,'Удалить',true)){ o.risers.splice(d.i,1); await save(true); }
+      renderPlan(); return; }
+    if(path){ const P=path; path=null; const k=ed.k; const ext=Math.max(...P.map(q=>Math.hypot(q[0]-P[0][0],q[1]-P[0][1])));
+      if(ext<8*k) await feed([P[0]]);
+      else { const S=rdp(P,14*k); await feed(ed.cur.length?S.slice(1):S); }
+      return; }
+    if(drag){ const d=drag; drag=null; if(d.moved){ let best=null,bd=28*ed.k; for(const a of pts(d.r)) for(const b of allCorners(d.r.id)){ const dd=Math.hypot(a[0]-b[0],a[1]-b[1]); if(dd<bd){bd=dd;best=[b[0]-a[0],b[1]-a[1]];} }
+        if(best){ d.r.x+=best[0]; d.r.y+=best[1]; } d.r.x=Math.round(d.r.x); d.r.y=Math.round(d.r.y); await save(true); } renderPlan(); }
+  };
+  svg.onclick=e=>{
+    if(ed.skip){ ed.skip=false; return; }
+    if(ed.mode!=='size') return; const w=e.target.closest('[data-wall]');
+    if(w){ const [rid,i]=w.dataset.wall.split(':'); const r=o.rooms.find(x=>x.id===rid); sizeWall(r,+i); return; }
+    const pg=e.target.closest('[data-room]'); ed.sel=pg?pg.dataset.room:null; renderPlan();
+  };
+  bindPlan.rebind=()=>{ const s2=box.querySelector('svg'); s2.onpointerdown=svg.onpointerdown; s2.onpointermove=svg.onpointermove; s2.onpointerup=svg.onpointerup; s2.onclick=svg.onclick; s2.setPointerCapture&&0; };
+}
+
+// окна и двери тянутся пальцем: вдоль стены и на любую другую стену своей комнаты
+function nearestWall(r,p){ const S=sides(pts(r)); let best=null;
+  S.forEach((s,i)=>{ const dx=s.q[0]-s.p[0],dy=s.q[1]-s.p[1],L=s.L||1; const t=Math.max(0,Math.min(1,((p[0]-s.p[0])*dx+(p[1]-s.p[1])*dy)/(L*L)));
+    const d=Math.hypot(s.p[0]+dx*t-p[0],s.p[1]+dy*t-p[1]); if(!best||d<best.d) best={i,t,L,d}; }); return best; }
+function opDrag(box,can,redraw,done){
+  let od=null;
+  box.addEventListener('pointerdown',e=>{ if(!can()) return; const t=e.target.closest&&e.target.closest('[data-op]'); if(!t) return;
+    e.preventDefault(); e.stopPropagation(); const [rid,i]=t.dataset.op.split(':'); const r=state.obj.rooms.find(x=>x.id===rid); if(!r) return;
+    od={r,key:t.dataset.op,op:r.openings[+i],x:e.clientX,y:e.clientY,moved:false}; try{ box.setPointerCapture(e.pointerId); }catch(_){} },true);
+  box.addEventListener('pointermove',e=>{ if(!od) return; if(!od.moved&&Math.hypot(e.clientX-od.x,e.clientY-od.y)<6) return; od.moved=true;
+    const p=svgPt(box.querySelector('svg'),e), w=nearestWall(od.r,p); if(!w) return; const op=od.op, wd=Math.min(num(op.w)||80,w.L);
+    op.wall=String(w.i+1); op.off=String(Math.max(0,Math.min(Math.round(w.L-wd),Math.round((w.t*w.L-wd/2)/5)*5)));
+    redraw(od.key); const h=$('#hint'); if(h&&box.id==='planBox') h.textContent=`${op.type}: стена ${op.wall}, ${op.off} см от угла. Отпустите, чтобы поставить.`; },true);
+  const end=async e=>{ if(!od) return; const d=od; od=null; ed.skip=true; setTimeout(()=>ed.skip=false,350);
+    if(d.moved){ await save(true); toast(`${d.op.type}: стена ${d.op.wall}, ${d.op.off} см от угла`); } else toast('Окно или дверь можно тянуть пальцем');
+    done(); };
+  box.addEventListener('pointerup',end,true); box.addEventListener('pointercancel',end,true);
+}
+
+// ---------- 2. Помещения: название, окна и двери, фото ----------
+let openR=null;
+function opRows(r){ return (r.openings||[]).map((op,i)=>`<div class="op">
+   <select data-op="${i}" data-f="type">${Object.keys(OPS).map(t=>`<option ${op.type===t?'selected':''}>${t}</option>`).join('')}</select>
+   <select data-op="${i}" data-f="wall">${r.walls.map((w,j)=>`<option value="${j+1}" ${+op.wall===j+1?'selected':''}>Стена ${j+1}</option>`).join('')}</select>
+   <div class="unit"><input data-op="${i}" data-f="w" type="number" inputmode="decimal" value="${esc(op.w)}" placeholder="ширина"><span>ш</span></div>
+   <div class="unit"><input data-op="${i}" data-f="h" type="number" inputmode="decimal" value="${esc(op.h)}" placeholder="высота"><span>в</span></div>
+   <div class="unit"><input data-op="${i}" data-f="off" type="number" inputmode="decimal" value="${esc(op.off)}" placeholder="центр"><span>от угла</span></div>
+   <button class="x" data-opdel="${i}" aria-label="Удалить">×</button></div>`).join(''); }
+function roomHead(r,o,i){ const ph=phCount[r.id]||0, nw=r.openings.filter(x=>/Окно/.test(x.type)).length, nd=r.openings.length-nw;
+  return `<div class="finhead row" data-open="${r.id}"><h2 style="flex:1;margin:0">${i+1}. ${esc(r.name)}</h2>
+   <span class="tag">окон ${nw} · дверей ${nd}</span><span class="tag ${ph>=PH_MIN?'ok':'warn'}">${ic('photo',14)} фото ${ph}/${PH_MIN}</span><span class="chev ${openR===r.id?'up':''}">${ic('chev')}</span></div>`; }
 function tabRooms(){
   const o=state.obj;
-  $('#tab').innerHTML=`<div class="card"><div class="row"><h2 style="flex:1;margin:0">Помещения</h2></div>
-   <div class="chips" style="margin:12px 0">${ROOM_TYPES.map(t=>`<span class="chip" data-add="${t}">+ ${t}</span>`).join('')}</div>
-   <div class="list">${o.rooms.map(r=>{const g=geom(r);return`<div class="item" data-r="${r.id}"><div class="t"><b>${esc(r.name)}</b><small>${r.walls.length?`${r.walls.length} стен · пол ${f2(g.area)} м² · стены ${f2(g.walls)} м²`:'<span class="warn">ещё не замерено</span>'} ${!g.closed&&r.walls.length>2?'<span class="warn">· не замкнуто</span>':''}</small></div><button class="btn sec sm">Открыть</button><button class="x" data-delr="${r.id}" aria-label="Удалить ${esc(r.name)}" style="width:50px">×</button></div>`}).join('')||'<p style="color:var(--mut)">Выберите тип квартиры во вкладке «Клиент» или нажмите на тип помещения выше.</p>'}</div></div>`;
-  document.querySelectorAll('[data-add]').forEach(el=>el.onclick=async()=>{
-    const t=el.dataset.add; const n=o.rooms.filter(r=>r.type===t).length;
-    let nm=t; if(o.rooms.some(x=>x.name===t)){ let k=2; while(o.rooms.some(x=>x.name===`${t} ${k}`)) k++; nm=`${t} ${k}`; }
-    const r={id:uid(),type:t,name:nm,height:o.rooms[0]?.height||'270',walls:[],openings:[],state:{},note:''};
-    o.rooms.push(r); await save(); go('room',{roomId:r.id}); });
-  document.querySelectorAll('[data-r]').forEach(el=>el.onclick=()=>go('room',{roomId:el.dataset.r}));
-  document.querySelectorAll('[data-delr]').forEach(el=>el.onclick=async e=>{ e.stopPropagation(); const r=o.rooms.find(x=>x.id===el.dataset.delr);
-    if(!await confirmBox(`Удалить помещение «${esc(r.name)}»${r.walls.length?' вместе с замером':''}?`,'Удалить')) return;
-    o.rooms=o.rooms.filter(x=>x!==r); o.rooms.forEach(x=>(x.openings||[]).forEach(d=>{ if(d.to===r.id) d.to=''; })); await save(); renderObj(); toast('Помещение удалено'); });
+  if(!o.rooms.length){ $('#tab').innerHTML=`<div class="card empty">Сначала нарисуйте помещения на плане.<div style="margin-top:12px"><button class="btn" data-next="plan">${ic('pen')} К плану</button></div></div>`; bindNext(); return; }
+  if(!openR||!o.rooms.some(r=>r.id===openR)) openR=o.rooms[0].id;
+  $('#tab').innerHTML=o.rooms.map((r,i)=>{ const own=r.name&&!ROOM_NAMES.includes(r.name)&&!/^Помещение \d+$/.test(r.name);
+    return `<div class="card fin ${openR===r.id?'open':''}" id="rc-${r.id}">${roomHead(r,o,i)}
+   ${openR===r.id?`<div class="xw2">
+     <div><label>Название помещения</label><select data-name="${r.id}"><option value="">Выберите…</option>${ROOM_NAMES.map(n=>`<option ${r.name===n?'selected':''}>${n}</option>`).join('')}<option value="__own" ${own?'selected':''}>${OWN}…</option></select>
+       ${own||r._own?`<input data-nameown="${r.id}" value="${esc(own?r.name:'')}" placeholder="Своё название" style="margin-top:8px">`:''}
+       <div class="mini">${planSVG(o,{only:r.id,h:250})}</div></div>
+     <div><label>Окна и двери</label><p class="hint" style="margin:0 0 8px">Проще всего тянуть окно или дверь пальцем прямо на плане слева. Можно и цифрами: стена и «от угла». Без «от угла» проём встанет по центру стены.</p>
+       <div id="ops">${opRows(r)||'<p class="hint">Пока нет окон и дверей.</p>'}</div>
+       <div class="chips" style="margin-top:6px">${Object.keys(OPS).map(t=>`<span class="chip sm" data-addop="${t}">${ic('plus',16)} ${t}</span>`).join('')}</div>
+       <label style="margin-top:18px">Фото помещения, минимум ${PH_MIN}</label><div class="photos" id="ph-${r.id}"></div>
+       <label class="btn ${ (phCount[r.id]||0)>=PH_MIN?'sec':''}" style="margin-top:10px">${ic('photo')} Сделать фото<input type="file" accept="image/*" capture="environment" multiple data-cam="${r.id}" class="hidden"></label></div>
+   </div>`:''}</div>`; }).join('')+nextBtn('fin','Дальше: отделка');
+  bindNext();
+  $$('[data-open]').forEach(el=>el.onclick=()=>{ openR=openR===el.dataset.open?null:el.dataset.open; tabRooms(); const c=$('#rc-'+el.dataset.open); c&&c.scrollIntoView({block:'start',behavior:'smooth'}); });
+  const r=o.rooms.find(x=>x.id===openR); if(!r) return;
+  const sel=$(`[data-name="${r.id}"]`); sel.onchange=()=>{ if(sel.value==='__own'){ r._own=true; tabRooms(); const i=$(`[data-nameown="${r.id}"]`); i&&i.focus(); return; } r._own=false; if(sel.value) r.name=sel.value; save(); tabRooms(); drawTabs(); };
+  const own=$(`[data-nameown="${r.id}"]`); if(own) own.oninput=()=>{ r.name=own.value||r.name; save(true); drawTabs(); };
+  $$('[data-addop]').forEach(el=>el.onclick=()=>{ const t=el.dataset.addop; r.openings.push({type:t,wall:'1',w:String(OPS[t].w),h:String(OPS[t].h),off:''}); save(); tabRooms(); });
+  $$('#ops [data-op]').forEach(el=>{ const f=()=>{ const op=r.openings[+el.dataset.op]; op[el.dataset.f]=el.value; if(el.dataset.f==='type'&&!op._wh){ op.w=String(OPS[el.value].w); op.h=String(OPS[el.value].h); } if(el.dataset.f==='w'||el.dataset.f==='h') op._wh=1; save(true); $(`#rc-${r.id} .mini`).innerHTML=planSVG(o,{only:r.id,h:250}); if(el.tagName==='SELECT') tabRooms(); };
+    el.tagName==='SELECT'?el.onchange=f:el.oninput=f; });
+  $$('[data-opdel]').forEach(el=>el.onclick=()=>{ r.openings.splice(+el.dataset.opdel,1); save(); tabRooms(); });
+  const mini=$(`#rc-${r.id} .mini`); if(mini){ mini.id='mini'; opDrag(mini,()=>true,key=>{ mini.innerHTML=planSVG(o,{only:r.id,h:250,dragOp:key}); },()=>tabRooms()); }
+  photoBlock(r);
+}
+function compress(file,m=1600){ return new Promise(res=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,m/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=img.width*k;c.height=img.height*k; c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.78)); URL.revokeObjectURL(img.src); }; img.onerror=()=>res(null); img.src=URL.createObjectURL(file); }); }
+async function photoBlock(r){
+  const o=state.obj, box=$('#ph-'+r.id); if(!box) return;
+  const ph=(await DB.all('photos')).filter(p=>p.obj===o.id&&p.room===r.id).sort((a,b)=>a.t-b.t);
+  box.innerHTML=ph.map(p=>`<figure><img src="${p.data}" alt=""><button class="x" data-dp="${p.id}" aria-label="Удалить фото">×</button></figure>`).join('')||`<p class="warn" style="margin:0">Фото ещё нет. Нужно минимум ${PH_MIN}.</p>`;
+  box.querySelectorAll('[data-dp]').forEach(el=>el.onclick=async()=>{ if(!await confirmBox('Удалить это фото?','Удалить')) return; await DB.del('photos',el.dataset.dp); phCount[r.id]--; tabRooms(); drawTabs(); });
+  const inp=$(`[data-cam="${r.id}"]`); if(inp) inp.onchange=async e=>{ let n=0; for(const f of e.target.files){ const d=await compress(f); if(!d) continue; await DB.put('photos',{id:uid(),obj:o.id,room:r.id,data:d,t:Date.now()}); n++; } e.target.value=''; phCount[r.id]=(phCount[r.id]||0)+n; await save(true); toast(n?`Фото добавлено: ${phCount[r.id]} из ${PH_MIN}`:'Фото не сохранилось'); tabRooms(); drawTabs(); };
 }
 
-// ---------- редактор помещения ----------
-const STATE_OPTS={'Стены':['Ровные','Есть завалы','Нужна штукатурка','Бетон/кирпич'],'Пол':['Стяжка есть','Без стяжки','Перепад > 2 см','Плита'],'Потолок':['Ровный','Перепад плит','Есть руст'],'Окна':['Откосы готовы','Нужны откосы','Подоконник менять']};
-
-function gapMsg(r,g){
-  if(g.diag) return `<span class="okc">✓ Форма по диагонали. Углы: ${g.angles.map((a,i)=>`${i+1}–${(i+1)%4+1}: ${a.toFixed(1).replace('.',',')}°`).join(', ')}</span>`;
-  if(g.bad) return '<span class="warn">Диагональ не сходится с длинами стен, проверьте замер.</span>';
-  if(r.walls.length<3) return '';
-  if(g.closed) return g.gap<1?'<span class="okc">✓ Контур замкнут</span>':`<span class="okc">✓ Контур замкнут</span> <span style="color:var(--mut)">(невязка ${Math.round(g.gap)} см в пределах допуска; для точной формы введите диагональ)</span>`;
-  return `<span class="warn">Контур не замкнут: расхождение ${Math.round(g.gap)} см. Проверьте размеры.</span>`;
-}
-const bgCache={}; let ed={mode:'view',pts:[],pend:null,diags:false,vb:null,room:null};
-async function renderRoom(){
-  const o=state.obj, r=o.rooms.find(x=>x.id===state.roomId);
-  if(ed.room!==r.id) ed={mode:'view',pts:[],pend:null,diags:false,vb:null,room:r.id,move:null};
-  if(r.bg&&!bgCache[r.bg.id]){ const ph=await DB.get('photos',r.bg.id); if(ph) bgCache[r.bg.id]=ph.data; }
-  header(r.name,true,['Удалить',async()=>{ if(await confirmBox('Удалить помещение «'+esc(r.name)+'»? Это нельзя отменить.','Удалить')){o.rooms=o.rooms.filter(x=>x!==r);await save();go('obj',{tab:'rooms'});} }]);
-  const g=geom(r);
-  $('#app').innerHTML=`
-  <div class="card"><div class="row" id="tools"><span class="chip" data-mode="view">${ic('hand')} План</span><span class="chip" data-mode="dim">${ic('ruler')} Размер на участке</span><span class="chip" id="diagT">${ic('diag')} Диагонали</span><label class="chip">${ic('photo')} План клиента<input type="file" accept="image/*" id="bgIn" class="hidden"></label><span class="chip" data-mode="draw">${ic('pen')} Эскиз пальцем</span></div>
-    <div id="drawBar" class="row hidden" style="margin-top:8px"><button class="btn sec" id="undoP">${ic('undo')} Отменить точку</button><button class="btn" id="finP">${ic('check')} Замкнуть</button><button class="btn sec" id="exitP">Выйти</button></div>
-    <p id="hint" style="margin:8px 0;color:var(--mut);font-size:14px"></p>
-    <div id="planBox"></div>
-    <div class="stat" id="stat" style="margin-top:10px"></div></div>
-  <div class="split">
-   <div>
-    <div class="card"><div class="grid"><div><label>Название</label><input id="rn" value="${esc(r.name)}"></div><div><label>Высота потолка, см</label><input id="rh" type="number" inputmode="decimal" value="${esc(r.height)}"></div></div></div>
-    <div class="card">
-      <h2>Стены <small style="color:var(--mut);font-weight:400">· по часовой, в см</small></h2>
-      <div class="row" style="margin-bottom:10px"><button class="btn sec sm" id="rect">${ic('rect')} Прямоугольник</button><button class="btn sec sm" id="close" ${g.gap>=1&&r.walls.length>=2?'':'disabled'}>Замкнуть автоматически</button></div>
-      <div id="rectBox" class="hidden grid" style="margin-bottom:10px"><div><label>Длина, см</label><input id="ra" type="number" inputmode="decimal"></div><div><label>Ширина, см</label><input id="rb" type="number" inputmode="decimal"></div><div><label>Диагональ, см (если есть)</label><input id="rd" type="number" inputmode="decimal"></div><div style="align-self:end"><button class="btn sm" id="rectOk">Построить</button></div></div>
-      <div id="walls">${r.walls.map((w,i)=>`<div class="wall"><b>${i+1}</b><input type="number" inputmode="decimal" data-len="${i}" value="${esc(w.len)}" placeholder="длина"><select data-turn="${i}">${[90,-90,45,-45,135,-135].includes(+w.turn)?'':`<option value="${+w.turn}" selected>${+w.turn>0?'направо':'налево'} ${Math.abs(+w.turn)}°</option>`}${[[90,'↱ направо 90°'],[-90,'↰ налево 90°'],[45,'направо 45°'],[-45,'налево 45°'],[135,'направо 135°'],[-135,'налево 135°']].map(([v,t])=>`<option value="${v}" ${+w.turn===v?'selected':''}>${t}</option>`).join('')}</select><button class="x" data-dw="${i}">×</button></div>`).join('')}</div>
-      <button class="btn blue" id="addW" style="width:100%;margin-top:6px">+ Стена</button>
-      <p id="gap" style="margin:10px 0 0">${gapMsg(r,g)}</p>
-      <div id="diagBox" class="${r.walls.length===4?'':'hidden'}" style="margin-top:10px"><label>Диагональ: из начала стены 1 в конец стены 2, см <small>(уточняет кривые углы)</small></label><input id="rdiag" type="number" inputmode="decimal" value="${esc(r.diag||'')}" placeholder="не обязательно"></div>
-    </div>
-    <div class="card">
-      <h2>Окна и двери</h2>
-      <div class="op" style="font-size:12px;color:var(--mut)"><span>Тип</span><span>Стена №</span><span>Ширина</span><span>Высота</span><span>От угла</span><span>Ведёт в</span><span></span></div>
-      <div id="ops">${r.openings.map((p,i)=>`<div class="op"><select data-ot="${i}">${['Окно','Дверь','Входная дверь','Балконный блок','Проём'].map(t=>`<option ${p.type===t?'selected':''}>${t}</option>`).join('')}</select><select data-ow2="${i}">${r.walls.map((w,k)=>`<option value="${k+1}" ${+p.wall===k+1?'selected':''}>${k+1}</option>`).join('')||'<option value="1">1</option>'}</select><input type="number" inputmode="decimal" data-ow="${i}" value="${esc(p.w)}"><input type="number" inputmode="decimal" data-oh="${i}" value="${esc(p.h)}"><input type="number" inputmode="decimal" data-oo="${i}" value="${esc(p.off)}" placeholder="центр"><select data-oto="${i}" ${['Дверь','Проём'].includes(p.type)?'':'disabled'}><option value="">${['Дверь','Проём'].includes(p.type)?'— выбрать —':'—'}</option>${o.rooms.filter(x=>x!==r).map(x=>`<option value="${x.id}" ${p.to===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="x" data-do="${i}">×</button></div>`).join('')}</div>
-      <div class="row"><button class="btn sec sm" data-addop="Окно">+ Окно</button><button class="btn sec sm" data-addop="Дверь">+ Дверь</button><button class="btn sec sm" data-addop="Балконный блок">+ Балконный блок</button><button class="btn sec sm" data-addop="Входная дверь">+ Входная дверь</button></div>
-    </div>
-    <div class="card">
-      <h2>Выступы, ниши, колонны</h2>
-      <div class="ft" style="font-size:12px;color:var(--mut)"><span>Что</span><span>Стена №</span><span>От угла</span><span>Ширина</span><span>Глубина</span><span>От стены</span><span></span></div>
-      <div>${(r.features||[]).map((f,i)=>`<div class="ft"><select data-ft="${i}" data-k="type">${['Выступ','Ниша','Колонна'].map(t=>`<option ${f.type===t?'selected':''}>${t}</option>`).join('')}</select>${['wall','off','w','d'].map(k=>`<input type="number" inputmode="decimal" data-ft="${i}" data-k="${k}" value="${esc(f[k])}">`).join('')}<input type="number" inputmode="decimal" data-ft="${i}" data-k="dist" value="${esc(f.dist)}" ${f.type==='Колонна'?'':'disabled placeholder="—"'}><button class="x" data-dft="${i}">×</button></div>`).join('')}</div>
-      <div class="row"><button class="btn sec sm" data-addft="Выступ">+ Выступ / короб</button><button class="btn sec sm" data-addft="Ниша">+ Ниша</button><button class="btn sec sm" data-addft="Колонна">+ Колонна</button></div>
-      <p style="font-size:13px;color:var(--mut);margin:8px 0 0">«От угла» — от начала стены. Для колонны «От стены» — расстояние от выбранной стены вглубь комнаты.</p>
-    </div>
-    <div class="card">
-      <h2>Неровности стен</h2>
-      <div>${(r.devs||[]).map((d,i)=>`<div class="dv"><input type="number" data-dv="${i}" data-k="wall" value="${esc(d.wall)}" placeholder="стена №"><select data-dv="${i}" data-k="kind">${['завал','горб','волна','угол не 90°'].map(t=>`<option ${d.kind===t?'selected':''}>${t}</option>`).join('')}</select><input type="number" inputmode="decimal" data-dv="${i}" data-k="mm" value="${esc(d.mm)}" placeholder="мм"><button class="x" data-ddv="${i}">×</button></div>`).join('')}</div>
-      <button class="btn sec sm" id="addDv">+ Отметить неровность</button>
-    </div>
-   </div>
-   <div>
-    <div class="card"><h2>Состояние</h2>${Object.entries(STATE_OPTS).map(([k,v])=>`<h3>${k}</h3><div class="chips">${v.map(x=>`<span class="chip ${(r.state[k]||[]).includes(x)?'on':''}" data-st="${k}" data-v="${x}">${x}</span>`).join('')}</div>`).join('')}
-      ${isWet(r)?`<h3>Сантехника: точки водоснабжения</h3><div class="row cnt"><button class="btn sec" data-wt2="-1">−</button><b id="wt2v">${r.water||0}</b><button class="btn sec" data-wt2="1">+</button></div>`:''}
-      <label>Примечание по помещению</label><textarea id="rnote" placeholder="Например: перенести дверь, розетки у кровати, ниша под шкаф">${esc(r.note)}</textarea></div>
-    <div class="card"><h2>Фото помещения</h2><div class="photos" id="rph"></div><label class="btn sec" style="margin-top:8px">${ic('photo')} Сфотографировать<input type="file" accept="image/*" capture="environment" id="rcam" class="hidden"></label></div>
-   </div>
-  </div>`;
-  const refresh=()=>{ const g=geom(r); renderPlan();
-    $('#stat').innerHTML=[['Пол / потолок',f2(g.area)+' м²'],['Стены (без проёмов)',f2(g.walls)+' м²'],['Периметр',f2(g.perim)+' м'],['Плинтус',f2(g.plinth)+' м'],['Откосы',f2(g.slopes)+' м'],['Проёмы',f2(g.opArea)+' м²']].map(([t,v])=>`<div><b>${v}</b><span>${t}</span></div>`).join('');
-    $('#gap').innerHTML=gapMsg(r,g); save(); };
-  // ---------- интерактивный план: просмотр / рисование / свой размер / план клиента ----------
-  const HINTS={view:'План строится сам из размеров стен ниже. Нажмите на размер на плане, чтобы его поправить. Окно или дверь: нажмите, чтобы перенести на другую стену, или тяните пальцем вдоль стены. Оранжевые «~» — примерные, их надо уточнить.',
-    draw:'Только для нестандартной формы, которую сложно ввести цифрами. Ставьте пальцем углы по очереди или ведите линию. Линии сами выравниваются под 90° и 45°. Нажмите на зелёную точку или «Замкнуть», чтобы закончить.',
-    dim:'Нажмите две точки (углы, края окон, любое место стены) и введите замеренный размер.',
-    scale:'Масштаб фото: нажмите две точки на фото, между которыми известен размер (например, подписанная стена), и введите его в см.'};
-  const box=$('#planBox');
-  const bgVB=()=>{ const b=r.bg; return b?[b.x-100,b.y-100,b.w+200,b.h+200]:null; };
-  const renderPlan=()=>{
-    const bg=r.bg&&bgCache[r.bg.id]?{...r.bg,href:bgCache[r.bg.id]}:null;
-    const showBg=bg&&(ed.mode==='draw'||ed.mode==='scale'||ed.showBg);
-    let vb=ed.mode==='draw'||ed.mode==='scale'?(ed.vb||(showBg?bgVB():null)||(r.walls.length?null:[-100,-100,1100,750])):undefined;
-    if(ed.mode==='draw'&&!ed.vb&&r.walls.length&&!showBg){ ed.vb=null; }
-    box.innerHTML=planSVG(ed.mode==='draw'?{...r,walls:[],openings:[],features:[],dims:[]}:r,{edit:ed.mode==='view'||ed.mode==='dim',moveOp:ed.mode==='view'?ed.move:null,grid:ed.mode==='draw'||!r.walls.length,draw:ed.mode==='draw'?ed.pts:null,pend:ed.pend,diags:ed.diags,vb,bg:showBg?bg:null});
-    $('#hint').innerHTML=ed.mode==='view'&&ed.move!=null&&r.openings[ed.move]?`<b style="color:var(--red)">Перенос: ${esc(r.openings[ed.move].type.toLowerCase())}.</b> Нажмите на стену в том месте, куда его поставить (на цифру размера — по центру). Отмена: нажмите на него ещё раз.`:esc(HINTS[ed.mode]); document.querySelectorAll('[data-mode]').forEach(c=>c.classList.toggle('on',c.dataset.mode===ed.mode));
-    $('#diagT').classList.toggle('on',!!ed.diags); $('#drawBar').classList.toggle('hidden',ed.mode!=='draw');
-    if(ed.mode==='draw'&&!ed.vb){ const sv=box.querySelector('svg'); ed.vb=sv.getAttribute('viewBox').split(' ').map(Number); }
-  };
-  const toCm=e=>{ const sv=box.querySelector('svg'),p=sv.createSVGPoint(); p.x=e.clientX; p.y=e.clientY; const q=p.matrixTransform(sv.getScreenCTM().inverse()); return [q.x,q.y]; };
-  const unit=()=>{ const sv=box.querySelector('svg'); const v=sv.viewBox.baseVal; return Math.max(v.width,v.height)/sv.getBoundingClientRect().width; };
-  const snapPoint=p=>{ const g=geom(r),pr=roomPrims(r),th=28*unit(); let best=null,bd=th;
-    const c=[...g.pts,...pr.ops.flatMap(o=>[o.p1,o.p2]),...g.cols.flat()]; c.forEach(q=>{const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d;best=q;}}); if(best) return [...best];
-    g.segs.forEach(sg=>{ const dx=sg.b[0]-sg.a[0],dy=sg.b[1]-sg.a[1],L2=dx*dx+dy*dy; if(!L2) return; let t=((p[0]-sg.a[0])*dx+(p[1]-sg.a[1])*dy)/L2; t=Math.max(0,Math.min(1,t)); const q=[sg.a[0]+dx*t,sg.a[1]+dy*t],d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d;best=q;} });
-    return best||p; };
-  const addCorner=p=>{ const P=ed.pts;
-    if(!P.length){ P.push([Math.round(p[0]/10)*10,Math.round(p[1]/10)*10]); return; }
-    if(P.length>=3&&Math.hypot(p[0]-P[0][0],p[1]-P[0][1])<30*unit()) return finishDraw();
-    const q=snapNext(P[P.length-1],p); if(q) P.push(q); };
-  const finishDraw=async()=>{ if(ed.pts.length<3){ toast('Нужно минимум 3 угла'); return; }
-    r.walls=cornersToWalls(ed.pts); r.diag=''; ed.mode='view'; ed.pts=[]; ed.vb=null; await save(); renderRoom(); };
-  const offAt=(wi,pt,ow)=>{ // отступ проёма от начала стены по точке касания (шаг 5 см)
-    const g=geom(r),L=num(r.walls[wi].len); let best=null,bd=1e9;
-    g.segs.filter(sg=>sg.wall===wi&&sg.kind==='wall'&&sg.len).forEach(sg=>{ const dx=sg.b[0]-sg.a[0],dy=sg.b[1]-sg.a[1],L2=dx*dx+dy*dy; let t=((pt[0]-sg.a[0])*dx+(pt[1]-sg.a[1])*dy)/L2; t=Math.max(0,Math.min(1,t));
-      const d=Math.hypot(sg.a[0]+dx*t-pt[0],sg.a[1]+dy*t-pt[1]); if(d<bd){bd=d;best=sg.from+t*sg.len;} });
-    if(best==null) return ''; return String(Math.round(Math.max(0,Math.min(L-ow,best-ow/2))/5)*5); };
-  let stroke=null, opDrag=null;
-  box.onpointerdown=e=>{
-    if(ed.mode==='view'){ const op=e.target.closest('[data-op]'); if(op){ e.preventDefault(); opDrag={i:+op.dataset.op,x:e.clientX,y:e.clientY,moved:false}; box.setPointerCapture(e.pointerId); } return; }
-    if(ed.mode!=='draw') return; e.preventDefault(); stroke=[toCm(e)]; box.setPointerCapture(e.pointerId);
-    const sv=box.querySelector('svg'); const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline'); pl.setAttribute('fill','none'); pl.setAttribute('stroke','#93c5fd'); pl.setAttribute('stroke-width',4*unit()); pl.id='tmpStroke'; sv.appendChild(pl); };
-  box.onpointermove=e=>{
-    if(opDrag){ if(!opDrag.moved&&Math.hypot(e.clientX-opDrag.x,e.clientY-opDrag.y)<8) return; opDrag.moved=true;
-      const p=r.openings[opDrag.i]; const wi=+p.wall-1; if(!r.walls[wi]) return; p.off=offAt(wi,toCm(e),num(p.w)); ed.move=null; renderPlan();
-      $('#hint').innerHTML=`<b style="color:var(--red)">${esc(p.type)}: ${p.off} см от угла ${LET[wi]||''}</b> · отпустите палец, чтобы поставить`; return; }
-    if(!stroke) return; stroke.push(toCm(e)); const pl=box.querySelector('#tmpStroke'); if(pl) pl.setAttribute('points',stroke.map(p=>p.join(',')).join(' ')); };
-  box.onpointerup=async e=>{
-    if(opDrag){ const d=opDrag; opDrag=null; if(!d.moved){ ed.move=ed.move===d.i?null:d.i; ed.skipClick=true; setTimeout(()=>ed.skipClick=false,350); renderPlan(); return; } if(d.moved){ ed.skipClick=true; setTimeout(()=>ed.skipClick=false,350); const p=r.openings[d.i]; await save(); toast(`${p.type}: ${p.off} см от угла`); renderRoom(); } return; }
-    if(ed.mode==='draw'&&stroke){ const st=stroke; stroke=null; let len=0; for(let i=1;i<st.length;i++) len+=Math.hypot(st[i][0]-st[i-1][0],st[i][1]-st[i-1][1]);
-      if(len<15*unit()) addCorner(st[st.length-1]);
-      else { const v=rdp(st,Math.max(15,12*unit())); v.forEach((p,i)=>{ if(i===0&&ed.pts.length){ const L=ed.pts[ed.pts.length-1]; if(Math.hypot(p[0]-L[0],p[1]-L[1])<40*unit()) return; } if(ed.mode==='draw') addCorner(p); }); }
-      if(ed.mode==='draw') renderPlan(); return; }
-    if(ed.mode==='dim'||ed.mode==='scale'){ if(e.target.closest('[data-dim]')) return; const p=ed.mode==='dim'?snapPoint(toCm(e)):toCm(e);
-      if(!ed.pend){ ed.pend=p; renderPlan(); return; }
-      const a=ed.pend; ed.pend=null; const d=Math.round(Math.hypot(p[0]-a[0],p[1]-a[1]));
-      if(ed.mode==='dim'){ const v=await ask('Размер участка, см',d,{hint:'По плану '+d+' см. Введите замер с дальномера.'}); if(v){ r.dims=r.dims||[]; r.dims.push({a,b:p,val:v}); await save(); } }
-      else { const v=await ask('Реальная длина отрезка, см','',{hint:'Например, подписанная на плане стена: 3500 мм = 350 см'}); if(v&&d){ const k=num(v)/d,b=r.bg; b.x=a[0]+(b.x-a[0])*k; b.y=a[1]+(b.y-a[1])*k; b.w*=k; b.h*=k; ed.mode='draw'; ed.vb=null; await save(); } }
-      refresh(); return; }
-  };
-  box.onclick=async e=>{
-    if(ed.skipClick){ ed.skipClick=false; return; }
-    if(ed.mode==='view'){ const op=e.target.closest('[data-op]'), wl0=e.target.closest('[data-wall]');
-      if(ed.move!=null){ if(wl0&&r.openings[ed.move]){ const p=r.openings[ed.move], wi=+wl0.dataset.wall; p.wall=String(wi+1); p.off=wl0.closest('[data-wall]')&&e.target.tagName==='line'?offAt(wi,toCm(e),num(p.w)):''; ed.move=null; await save(); toast(`${p.type} перенесено на стену ${p.wall}`); renderRoom(); return; }
-        ed.move=(op&&+op.dataset.op!==ed.move)?+op.dataset.op:null; renderPlan(); return; }
-      if(op){ ed.move=+op.dataset.op; renderPlan(); return; } }
-    const dm=e.target.closest('[data-dim]'); if(dm&&(ed.mode==='view'||ed.mode==='dim')){ const i=+dm.dataset.dim; const v=await ask('Размер участка, см',r.dims[i].val,{del:true}); if(v==='__del') r.dims.splice(i,1); else if(v) r.dims[i].val=v; await save(); refresh(); return; }
-    const wl=e.target.closest('[data-wall]'); if(wl&&ed.mode==='view'){ const i=+wl.dataset.wall,w=r.walls[i]; const v=await ask(`Стена ${i+1}: длина, см`,w.est?'':w.len,{hint:w.est?`С эскиза примерно ${w.len} см. Введите замер с дальномера.`:''}); if(v){ w.len=v; w.est=false; await save(); renderRoom(); } }
-  };
-  document.querySelectorAll('[data-mode]').forEach(c=>c.onclick=async()=>{ const m=c.dataset.mode;
-    if(m==='draw'&&r.walls.length&&!await confirmBox('Нарисовать комнату заново? Текущие стены заменятся.','Рисовать')) return;
-    ed.mode=m; ed.pend=null; ed.pts=[]; ed.vb=null; ed.move=null; renderPlan(); });
-  $('#diagT').onclick=()=>{ ed.diags=!ed.diags; renderPlan(); };
-  $('#undoP').onclick=()=>{ ed.pts.pop(); renderPlan(); };
-  $('#finP').onclick=finishDraw;
-  $('#exitP').onclick=()=>{ ed.mode='view'; ed.pts=[]; ed.vb=null; renderPlan(); };
-  $('#bgIn').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const data=await compress(f,1800); const id=uid();
-    await DB.put('photos',{id,obj:o.id,owner:'bg',label:'План клиента: '+r.name,data,t:Date.now()}); bgCache[id]=data;
-    const im=new Image(); im.onload=async()=>{ r.bg={id,x:0,y:0,w:1000,h:1000*im.height/im.width}; if(r.walls.length&&!await confirmBox('Обвести комнату по фото? Текущие стены заменятся после обводки.','Обвести')) return; ed.mode='scale'; ed.pend=null; ed.vb=null; await save(); renderPlan(); }; im.src=data; e.target.value=''; };
-  refresh();
-  $('#rn').oninput=e=>{r.name=e.target.value;$('#title').textContent=r.name;refresh();};
-  $('#rh').oninput=e=>{r.height=e.target.value;refresh();};
-  $('#rnote').oninput=e=>{r.note=e.target.value;save();};
-  document.querySelectorAll('[data-len]').forEach(el=>el.oninput=()=>{r.walls[+el.dataset.len].len=el.value;refresh();});
-  document.querySelectorAll('[data-turn]').forEach(el=>el.onchange=()=>{r.walls[+el.dataset.turn].turn=+el.value;refresh();});
-  document.querySelectorAll('[data-dw]').forEach(el=>el.onclick=()=>{r.walls.splice(+el.dataset.dw,1);save().then(renderRoom);});
-  $('#addW').onclick=()=>{r.walls.push({len:'',turn:90});save().then(()=>{renderRoom(); const ins=document.querySelectorAll('[data-len]'); ins[ins.length-1].focus();});};
-  $('#rect').onclick=()=>$('#rectBox').classList.toggle('hidden');
-  $('#rectOk').onclick=()=>{const a=$('#ra').value,b=$('#rb').value; if(!a||!b) return; r.walls=[{len:a,turn:90},{len:b,turn:90},{len:a,turn:90},{len:b,turn:90}]; r.diag=$('#rd').value; save().then(renderRoom);};
-  $('#close').onclick=()=>{ // добавляет недостающую стену до начала
-    const g=geom(r),[x,y]=g.pts[g.pts.length-1]; const L=Math.round(Math.hypot(x,y));
-    const hBefore=r.walls.slice(0,-1).reduce((s,w)=>s+num(w.turn??90),0);
-    let t=Math.atan2(-y,-x)*180/Math.PI-hBefore; t=((t%360)+540)%360-180;
-    r.walls[r.walls.length-1].turn=Math.round(t); r.walls.push({len:String(L),turn:90}); save().then(renderRoom); };
-  const opBind=(attr,key)=>document.querySelectorAll(`[data-${attr}]`).forEach(el=>el.oninput=el.onchange=()=>{r.openings[+el.dataset[attr]][key]=el.value;refresh();});
-  document.querySelectorAll('[data-ot]').forEach(el=>el.onchange=()=>{r.openings[+el.dataset.ot].type=el.value; save().then(renderRoom);});opBind('ow2','wall');opBind('ow','w');opBind('oh','h');opBind('oo','off');
-  document.querySelectorAll('[data-oto]').forEach(el=>el.onchange=()=>{r.openings[+el.dataset.oto].to=el.value; save();});
-  $('#rdiag').oninput=e=>{r.diag=e.target.value;refresh();};
-  document.querySelectorAll('[data-ft]').forEach(el=>el.oninput=el.onchange=()=>{const f=r.features[+el.dataset.ft]; f[el.dataset.k]=el.value; if(el.dataset.k==='type'){save().then(renderRoom);} else refresh();});
-  document.querySelectorAll('[data-dft]').forEach(el=>el.onclick=()=>{r.features.splice(+el.dataset.dft,1);save().then(renderRoom);});
-  document.querySelectorAll('[data-addft]').forEach(el=>el.onclick=()=>{r.features=r.features||[]; const t=el.dataset.addft; r.features.push({type:t,wall:'1',off:'0',w:t==='Ниша'?'80':'40',d:t==='Ниша'?'15':'30',dist:t==='Колонна'?'100':''});save().then(renderRoom);});
-  document.querySelectorAll('[data-dv]').forEach(el=>el.oninput=el.onchange=()=>{r.devs[+el.dataset.dv][el.dataset.k]=el.value;refresh();});
-  document.querySelectorAll('[data-ddv]').forEach(el=>el.onclick=()=>{r.devs.splice(+el.dataset.ddv,1);save().then(renderRoom);});
-  $('#addDv').onclick=()=>{r.devs=r.devs||[]; r.devs.push({wall:'1',kind:'завал',mm:''});save().then(renderRoom);};
-  document.querySelectorAll('[data-do]').forEach(el=>el.onclick=()=>{ed.move=null;r.openings.splice(+el.dataset.do,1);save().then(renderRoom);});
-  document.querySelectorAll('[data-addop]').forEach(el=>el.onclick=()=>{const t=el.dataset.addop; r.openings.push({type:t,wall:'1',w:t==='Окно'?'150':t==='Дверь'?'80':t==='Входная дверь'?'90':'70',h:t==='Окно'?'150':'210',off:''}); if(r.walls.length){ ed.mode='view'; ed.move=r.openings.length-1; } save().then(()=>{ renderRoom(); if(r.walls.length) $('#planBox').scrollIntoView({block:'center',behavior:'smooth'}); });});
-  document.querySelectorAll('[data-wt2]').forEach(el=>el.onclick=()=>{ r.water=Math.max(0,(r.water||0)+ +el.dataset.wt2); $('#wt2v').textContent=r.water; save(); });
-  document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{const k=el.dataset.st,v=el.dataset.v; const a=r.state[k]=r.state[k]||[]; const i=a.indexOf(v); i>=0?a.splice(i,1):a.push(v); el.classList.toggle('on'); save();});
-  photoBlock('#rph','#rcam',r.id,r.name);
-}
-
-// ---------- автосборка квартиры: комнаты стыкуются по связанным дверям ----------
-function doorPairs(o){ const used=new Set(), pairs=[];
-  o.rooms.forEach(A=>(A.openings||[]).forEach((d,i)=>{ if(!d.to||used.has(A.id+':'+i)) return; const B=o.rooms.find(x=>x.id===d.to); if(!B) return;
-    const j=(B.openings||[]).findIndex((e,k)=>e.to===A.id&&!used.has(B.id+':'+k)); if(j<0) return;
-    used.add(A.id+':'+i); used.add(B.id+':'+j); pairs.push({A,i,B,j}); }));
-  return pairs; }
-function autoLayout(o){
-  const t=num(o.wallT||10), pairs=doorPairs(o); if(!o.rooms.length) return {unlinked:[]};
-  const start=o.rooms.find(r=>(r.openings||[]).some(d=>d.type==='Входная дверь'))||o.rooms[0];
-  const done=new Set([start.id]); start.pos={x:0,y:0,rot:0}; let grew=true;
-  while(grew){ grew=false; pairs.forEach(pp=>{ let {A,i,B,j}=pp; if(done.has(B.id)&&!done.has(A.id)) [A,i,B,j]=[B,j,A,i]; if(!done.has(A.id)||done.has(B.id)) return;
-    const pa=roomPrims(A), pb=roomPrims(B), da=pa.ops.find(q=>q.i===i), db=pb.ops.find(q=>q.i===j); if(!da||!db) return;
-    const MA=placed(A,pa), q1=MA(da.p1), q2=MA(da.p2); const angQ=Math.atan2(q2[1]-q1[1],q2[0]-q1[0]), angP=Math.atan2(db.p2[1]-db.p1[1],db.p2[0]-db.p1[0]);
-    const same=pa.g.side===pb.g.side; const rot=same?angQ+Math.PI-angP:angQ-angP; const c=Math.cos(rot),s=Math.sin(rot);
-    const src=db.p1, dst=same?q2:q1; let T=[dst[0]-(src[0]*c-src[1]*s), dst[1]-(src[0]*s+src[1]*c)];
-    // сдвиг на толщину перегородки наружу от стены комнаты A
-    const sg=pa.g.segs.find(q=>q.wall===+A.openings[i].wall-1&&q.kind==='wall'); if(sg){ const nl=pa.norm(sg), ra=(A.pos.rot||0)*Math.PI/180; const nw=[nl[0]*Math.cos(ra)-nl[1]*Math.sin(ra), nl[0]*Math.sin(ra)+nl[1]*Math.cos(ra)]; T=[T[0]-nw[0]*t,T[1]-nw[1]*t]; }
-    B.pos={x:T[0],y:T[1],rot:rot*180/Math.PI}; done.add(B.id); grew=true; }); }
-  const unlinked=o.rooms.filter(r=>!done.has(r.id));
-  if(unlinked.length){ const b=aptBounds({rooms:o.rooms.filter(r=>done.has(r.id))}); let x=b[2]+200; unlinked.forEach(r=>{ const g=geom(r),xs=g.pts.map(p=>p[0]),ys=g.pts.map(p=>p[1]); r.pos={x:x-Math.min(...xs),y:b[1]-Math.min(...ys),rot:0}; x+=Math.max(...xs)-Math.min(...xs)+150; }); }
-  return {unlinked};
-}
-function inPoly(p,P){ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ if(((P[i][1]>p[1])!==(P[j][1]>p[1]))&&(p[0]<(P[j][0]-P[i][0])*(p[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0])) c=!c; } return c; }
-function overlaps(o){ const W=o.rooms.map(r=>{const pr=roomPrims(r),M=placed(r,pr); const P=pr.g.poly.map(M); const c=pr.c?M(pr.c):P[0]; return {r,P,c};}); const out=[];
-  for(let i=0;i<W.length;i++) for(let j=i+1;j<W.length;j++){ const A=W[i],B=W[j]; const test=(X,Y)=>X.P.some(p=>{const d=Math.hypot(X.c[0]-p[0],X.c[1]-p[1])||1; const q=[p[0]+(X.c[0]-p[0])/d*15,p[1]+(X.c[1]-p[1])/d*15]; return inPoly(q,Y.P);})||inPoly(X.c,Y.P);
-    if(A.P.length>2&&B.P.length>2&&(test(A,B)||test(B,A))) out.push([A.r.name,B.r.name]); }
-  return out; }
-function tabCalc(){
-  const o=state.obj, t=totals(o); const sum=(k,u)=>o.rooms.map(r=>f2(geom(r)[k])).join(' + ')+` = <b>${f2(t[k==='walls'?'walls':k])} ${u}</b>`;
-  const st=r=>{const g=geom(r);return `<div class="stat">${[['Пол',f2(g.area)+' м²'],['Потолок',f2(g.area)+' м²'],['Стены (без проёмов)',f2(g.walls)+' м²'],['Периметр',f2(g.perim)+' м'],['Плинтус',f2(g.plinth)+' м'],['Откосы',f2(g.slopes)+' м'],['Проёмы',f2(g.opArea)+' м²']].map(([t,v])=>`<div><b>${v}</b><span>${t}</span></div>`).join('')}</div>`;};
-  $('#tab').innerHTML=`<div class="card"><h2>Площади по комнатам</h2><table><tr><th>Помещение</th><th class="n">Пол, м²</th><th class="n">Стены, м²</th><th class="n">Периметр, м</th></tr>${o.rooms.map(r=>{const g=geom(r);return `<tr><td>${esc(r.name)}</td><td class="n">${f2(g.area)}</td><td class="n">${f2(g.walls)}</td><td class="n">${f2(g.perim)}</td></tr>`;}).join('')}<tr class="tot"><td><b>Итого</b></td><td class="n"><b>${f2(t.area)}</b></td><td class="n"><b>${f2(t.walls)}</b></td><td class="n"><b>${f2(t.perim)}</b></td></tr></table></div>
-    <div class="card"><h2>Итого по квартире</h2><table class="calc">
-    <tr><td>Пол</td><td>${sum('area','м²')}</td></tr><tr><td>Потолок</td><td>равен полу: <b>${f2(t.area)} м²</b></td></tr>
-    <tr><td>Стены без проёмов</td><td>${sum('walls','м²')}</td></tr><tr><td>Периметр</td><td>${sum('perim','м')}</td></tr>
-    <tr><td>Плинтус</td><td>${sum('plinth','м')}</td></tr><tr><td>Откосы</td><td>${sum('slopes','м')}</td></tr></table></div>
-    ${o.rooms.map((r,i)=>`<div class="card"><div class="row"><h2 style="flex:1;margin:0">${i+1}. ${esc(r.name)}</h2><button class="btn sec sm" data-open="${r.id}">Открыть комнату</button></div><div style="margin-top:12px">${st(r)}</div><details style="margin-top:10px"><summary style="cursor:pointer;color:var(--mut);font-size:14px">Как посчитано</summary><div style="margin-top:8px">${calcHTML(r)}</div></details></div>`).join('')}`;
-  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>go('room',{roomId:b.dataset.open}));
-}
-// ---------- план квартиры: комнаты перетаскиваются пальцем и прилипают углами ----------
-let aptSel=null;
-function tabApt(){
-  const o=state.obj; ensurePos(o); let unlinked=[];
-  if(!o.manualPlan){ unlinked=autoLayout(o).unlinked; save(); } else { const linked=new Set(); doorPairs(o).forEach(p=>{linked.add(p.A.id);linked.add(p.B.id);}); unlinked=o.rooms.length>1?o.rooms.filter(r=>!linked.has(r.id)):[]; }
-  const notClosed=o.rooms.filter(r=>!geom(r).closed);
-  $('#tab').innerHTML=`<div class="card"><div class="row" style="margin-bottom:8px"><h2 style="flex:1;margin:0">План квартиры</h2>
-    <button class="btn sm" id="auto">${ic('link')} Собрать по дверям</button><button class="btn sec sm" id="rot" ${aptSel?'':'disabled'}>${ic('rotate')} Повернуть</button><button class="btn sec sm" id="mir" ${aptSel?'':'disabled'}>${ic('mirror')} Отразить</button></div>
-    <p style="font-size:14px;color:var(--mut);margin:0 0 8px">План собирается сам: комнаты стыкуются по дверям, у которых указано «Ведёт в». Если что-то встало не так, комнату можно подвинуть пальцем или повернуть.</p>
-    <div class="row" style="margin:0 0 8px"><label style="margin:0">Толщина перегородок, см</label><input id="wallT" type="number" inputmode="decimal" value="${esc(o.wallT||10)}" style="width:100px"></div>
-    ${overlaps(o).map(([a,b])=>`<p class="warn" style="margin:0 0 8px">Наложились «${esc(a)}» и «${esc(b)}»: проверьте у их дверей размер «От угла».</p>`).join('')}
-    ${unlinked.length?`<p class="warn" style="margin:0 0 8px">Не связаны дверью: ${unlinked.map(r=>esc(r.name)).join(', ')}. Откройте комнату и в двери укажите «Ведёт в».</p>`:''}
-    ${notClosed.length?`<p class="warn" style="margin:0 0 8px">Не замкнуты: ${notClosed.map(r=>esc(r.name)).join(', ')}</p>`:''}
-    <div id="aptBox">${aptSVG(o,{sel:aptSel})}</div>
-    <div class="stat" style="margin-top:10px"><div><b>${f2(totals(o).area)} м²</b><span>Общая площадь</span></div><div><b>${o.rooms.length}</b><span>Помещений</span></div></div></div>`;
-  $('#auto').onclick=()=>{ o.manualPlan=false; aptSel=null; tabApt(); };
-  $('#wallT').onchange=e=>{ o.wallT=e.target.value; tabApt(); };
-  $('#rot').onclick=()=>{ const r=o.rooms.find(x=>x.id===aptSel); if(!r) return; o.manualPlan=true; rotateRoom(r,90); save(); tabApt(); };
-  $('#mir').onclick=()=>{ const r=o.rooms.find(x=>x.id===aptSel); if(!r) return; o.manualPlan=true; mirrorRoom(r); save(); tabApt(); };
-  const svg=$('#apt'); let drag=null;
-  const pt=e=>{ const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
-  svg.querySelectorAll('[data-room]').forEach(gEl=>gEl.addEventListener('pointerdown',e=>{ e.preventDefault(); const r=o.rooms.find(x=>x.id===gEl.dataset.room); const p=pt(e); drag={r,g:gEl,sx:p.x,sy:p.y,ox:r.pos.x,oy:r.pos.y,moved:false}; svg.setPointerCapture(e.pointerId); }));
-  svg.addEventListener('pointermove',e=>{ if(!drag) return; const p=pt(e); const dx=p.x-drag.sx,dy=p.y-drag.sy; if(Math.hypot(dx,dy)>3) drag.moved=true; drag.r.pos.x=drag.ox+dx; drag.r.pos.y=drag.oy+dy; drag.g.setAttribute('transform',`translate(${dx} ${dy})`); });
-  svg.addEventListener('pointerup',()=>{ if(!drag) return; const r=drag.r; if(drag.moved){ snapRoom(o,r); o.manualPlan=true; } aptSel=r.id; drag=null; save(); tabApt(); });
-}
-function cornersOf(r){ const pr=roomPrims(r),M=placed(r,pr); return pr.g.poly.map(M); }
-function snapRoom(o,r){ // ближайшие углы в пределах 40 см совмещаются
-  const mine=cornersOf(r); let best=null;
-  o.rooms.filter(x=>x!==r).forEach(x=>cornersOf(x).forEach(q=>mine.forEach(m=>{ const d=Math.hypot(q[0]-m[0],q[1]-m[1]); if(d<40&&(!best||d<best.d)) best={d,dx:q[0]-m[0],dy:q[1]-m[1]}; })));
-  if(best){ r.pos.x+=best.dx; r.pos.y+=best.dy; }
-}
-function rotateRoom(r,deg){ const c0=cornersOf(r); const cx=c0.reduce((s,p)=>s+p[0],0)/c0.length,cy=c0.reduce((s,p)=>s+p[1],0)/c0.length;
-  r.pos.rot=((r.pos.rot||0)+deg)%360; const c1=cornersOf(r); const nx=c1.reduce((s,p)=>s+p[0],0)/c1.length,ny=c1.reduce((s,p)=>s+p[1],0)/c1.length; r.pos.x+=cx-nx; r.pos.y+=cy-ny; }
-function mirrorRoom(r){ // обход стен в обратную сторону = зеркальная комната
-  const c0=cornersOf(r); const cx=c0.reduce((s,p)=>s+p[0],0)/c0.length,cy=c0.reduce((s,p)=>s+p[1],0)/c0.length;
-  r.walls=r.walls.map(w=>({...w,turn:-num(w.turn??90)})); const c1=cornersOf(r); const nx=c1.reduce((s,p)=>s+p[0],0)/c1.length,ny=c1.reduce((s,p)=>s+p[1],0)/c1.length; r.pos.x+=cx-nx; r.pos.y+=cy-ny; }
-
-// ---------- вид чистовой отделки (по каждой комнате отдельно) ----------
-let finOpen=null;
-function tabWishes(){
+// ---------- 3. Отделка ----------
+let openF=null;
+const chipSet=(arr,v,attr)=>`<div class="chips">${v.map(x=>`<span class="chip ${arr.includes(x)?'on':''}" ${attr}="${esc(x)}">${esc(x)}</span>`).join('')}</div>`;
+function finSum(r){ const f=r.fin, fl=[...f.floor,...(f.floorOwn?[f.floorOwn]:[])].join(', ');
+  return [fl&&'Пол: '+fl, f.walls.length&&'Стены: '+f.walls.join(', '), f.accent==='да'&&'Акцент: '+([...f.accFin,...(f.accOwn?[f.accOwn]:[])].join(', ')||'—')+(f.accWall.length?' (стена '+f.accWall.join(', ')+')':'')].filter(Boolean).join(' · '); }
+function tabFin(){
   const o=state.obj;
-  if(!o.rooms.length){ $('#tab').innerHTML='<div class="card"><h2>Вид чистовой отделки</h2><p style="color:var(--mut)">Сначала добавьте помещения на вкладке «Помещения».</p></div>'; return; }
-  const sum=r=>{ const f=r.fin||{}; const parts=Object.entries(FIN).map(([k,d])=>{const t=finText(r,k);return t?`<span>${d.t}: <b>${esc(t)}</b></span>`:`<span class="warn">${d.t}: не выбрано</span>`;}); if(accText(r)) parts.push(`<span style="color:${ACC_COL}">Акцентная стена: <b>${esc(accText(r))}</b></span>`); if(quietText(r)) parts.push(`<span style="color:${QUIET_COL}">Тихие стены: <b>${esc(quietText(r))}</b></span>`); if(isWet(r)) parts.push(`<span>Точки водоснабжения: <b>${r.water||0}</b></span>`); return parts.join('<br>'); };
-  $('#tab').innerHTML=`<div class="card"><h2>Вид чистовой отделки</h2><p style="color:var(--mut);margin:0">Нажмите на комнату и выберите отделку. Каждая комната заполняется отдельно. Цвет и артикул выбираются позже с дизайнером.</p></div>
-   ${o.rooms.map(r=>{ const open=finOpen===r.id, f=r.fin||{}; return `<div class="card fin">
-     <div class="row finhead" data-fo="${r.id}"><div style="flex:1"><h2 style="margin:0 0 4px">${esc(r.name)} <small style="color:var(--mut);font-weight:400">${f2(geom(r).area)} м²</small></h2><div class="finsum">${sum(r)}</div></div><span class="btn sec sm">${open?'Свернуть ▲':'Выбрать ▼'}</span></div>
-     ${open?Object.entries(FIN).map(([k,d])=>`<h3>${d.t}</h3><div class="chips">${Object.keys(d.opts).map(t=>`<span class="chip ${(f[k]||{})[t]!==undefined?'on':''}" data-fk="${k}" data-fv="${t}">${t}</span>`).join('')}</div>
-       ${Object.entries(f[k]||{}).filter(([t])=>d.opts[t]&&d.opts[t].length).map(([t,v])=>`<div class="subv"><small>${t}:</small> ${d.opts[t].map(x=>`<span class="chip sm ${v===x?'on':''}" data-fk="${k}" data-fv="${t}" data-fx="${x}">${x}</span>`).join('')}</div>`).join('')}`).join('')
-      +extraWalls(r)
-      +(isWet(r)?`<h3>Точки водоснабжения</h3><div class="row cnt"><button class="btn sec" data-wt="-1">−</button><b>${r.water||0}</b><button class="btn sec" data-wt="1">+</button><small style="color:var(--mut)">ХВС, ГВС</small></div>`:'')
-      +`<label>Примечание по отделке комнаты</label><textarea data-fn placeholder="Например: фартук на кухне, тёплый пол, короб под трубы">${esc(r.finNote||'')}</textarea>`:''}
-   </div>`}).join('')}
-   <div class="card"><label>Общие примечания для сметы</label><textarea id="wn2" placeholder="Например: перенос мокрой зоны, демонтаж перегородки, вывоз мусора">${esc(o.notes2||'')}</textarea></div>`;
-  const cur=()=>o.rooms.find(r=>r.id===finOpen);
-  document.querySelectorAll('[data-fo]').forEach(el=>el.onclick=()=>{ finOpen=finOpen===el.dataset.fo?null:el.dataset.fo; tabWishes(); const c=document.querySelector(`[data-fo="${finOpen}"]`); c&&c.scrollIntoView({block:'start'}); });
-  document.querySelectorAll('[data-fk]').forEach(el=>el.onclick=()=>{ const r=cur(),k=el.dataset.fk,t=el.dataset.fv,x=el.dataset.fx; r.fin=r.fin||{}; const m=r.fin[k]=r.fin[k]||{};
-    if(x!==undefined) m[t]=x; else if(m[t]!==undefined) delete m[t]; else m[t]=FIN[k].opts[t][0]||'';
-    save(); tabWishes(); });
-  document.querySelectorAll('[data-xa]').forEach(el=>el.onclick=()=>{ const r=cur(),a=el.dataset.xa,v=el.dataset.v;
-    if(a==='acc') r.accent=r.accent?null:{walls:[],type:'',v:''};
-    if(a==='quiet') r.quiet=r.quiet?null:{walls:[],v:QUIET_V[0]};
-    if(a==='aw'){ const w=r.accent.walls,i=w.indexOf(v); i>=0?w.splice(i,1):w.push(v); w.sort((x,y)=>x-y); }
-    if(a==='at'){ if(r.accent.type===v){r.accent.type='';r.accent.v='';} else {r.accent.type=v;r.accent.v=FIN.walls.opts[v][0]||'';} }
-    if(a==='av') r.accent.v=v;
-    if(a==='qw'){ const w=r.quiet.walls,i=w.indexOf(v); i>=0?w.splice(i,1):w.push(v); w.sort((x,y)=>x-y); }
-    if(a==='qa') r.quiet.walls=[];
-    if(a==='qv') r.quiet.v=v;
-    save(); tabWishes(); });
-  document.querySelectorAll('[data-wt]').forEach(el=>el.onclick=()=>{ const r=cur(); r.water=Math.max(0,(r.water||0)+ +el.dataset.wt); save(); tabWishes(); });
-  const fn=document.querySelector('[data-fn]'); if(fn) fn.oninput=e=>{cur().finNote=e.target.value;save();};
-  $('#wn2').oninput=e=>{o.notes2=e.target.value;save();};
-}
-function extraWalls(r){
-  const W=r.walls.map((w,i)=>String(i+1)), wl=i=>`${i} <small>(${LET[i-1]||''}–${LET[i%r.walls.length]||''}) ${f2(num(r.walls[i-1].len)/100)} м</small>`;
-  const a=r.accent,q=r.quiet;
-  let h=`<h3>Дополнительно (по желанию)</h3><div class="chips"><span class="chip ${a?'on':''}" data-xa="acc">${a?'':'+ '}Акцентная стена</span><span class="chip ${q?'on':''}" data-xa="quiet">${q?'':'+ '}Тихие стены (шумоизоляция)</span></div>`;
-  if(!a&&!q) return h;
-  h+=`<div class="xw"><div class="xplan">${r.walls.length?planSVG(r,{h:300,wallNums:true,small:true}):'<p style="color:var(--mut)">Нет стен — сначала замер помещения.</p>'}</div><div>`;
-  if(a) h+=`<div class="xbox" style="border-color:${ACC_COL}"><b style="color:${ACC_COL}">Акцентная стена</b><div class="subv"><small>Какая стена:</small> ${W.map(i=>`<span class="chip sm ${a.walls.includes(i)?'on':''}" data-xa="aw" data-v="${i}">${wl(i)}</span>`).join('')}</div>
-    <div class="subv"><small>Отделка:</small> ${Object.keys(FIN.walls.opts).map(t=>`<span class="chip sm ${a.type===t?'on':''}" data-xa="at" data-v="${t}">${t}</span>`).join('')}</div>
-    ${a.type&&FIN.walls.opts[a.type].length?`<div class="subv"><small>${a.type}:</small> ${FIN.walls.opts[a.type].map(x=>`<span class="chip sm ${a.v===x?'on':''}" data-xa="av" data-v="${x}">${x}</span>`).join('')}</div>`:''}
-    ${a.walls.length?`<div style="margin-top:6px">Площадь: <b>${f2(a.walls.reduce((s,w)=>s+wallArea(r,w),0))} м²</b> <small style="color:var(--mut)">(без проёмов)</small></div>`:'<div class="warn" style="margin-top:6px">Выберите стену</div>'}</div>`;
-  if(q) h+=`<div class="xbox" style="border-color:${QUIET_COL}"><b style="color:${QUIET_COL}">Тихие стены</b><div class="subv"><small>Система:</small> ${QUIET_V.map(x=>`<span class="chip sm ${q.v===x?'on':''}" data-xa="qv" data-v="${x}">${x}</span>`).join('')}</div>
-    <div class="subv"><small>Стены:</small> <span class="chip sm ${q.walls.length?'':'on'}" data-xa="qa">все</span>${W.map(i=>`<span class="chip sm ${q.walls.includes(i)?'on':''}" data-xa="qw" data-v="${i}">${wl(i)}</span>`).join('')}</div>
-    <div style="margin-top:6px">Площадь: <b>${esc(quietText(r).split(' · ').pop())}</b> <small style="color:var(--mut)">(без проёмов)</small></div></div>`;
-  return h+`</div></div>`;
-}
-function finTable(o){
-  return `<table><tr><th>Помещение</th><th>Пол</th><th>Стены</th><th>Потолок</th><th class="n">Точки водоснабжения</th></tr>${o.rooms.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(finText(r,'floor'))}</td><td>${esc(finText(r,'walls'))}${accText(r)?`<br><span style="color:${ACC_COL}">Акцент: ${esc(accText(r))}</span>`:''}${quietText(r)?`<br><span style="color:${QUIET_COL}">Тихие стены: ${esc(quietText(r))}</span>`:''}</td><td>${esc(finText(r,'ceil'))}</td><td class="n">${isWet(r)?(r.water||0):''}</td></tr>${r.finNote?`<tr><td></td><td colspan="4"><i>${esc(r.finNote)}</i></td></tr>`:''}`).join('')}</table>`;
-}
-
-// ---------- фото ----------
-function compress(file,m=1280){ return new Promise(res=>{ const img=new Image(); img.onload=()=>{ k=Math.min(1,m/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=img.width*k;c.height=img.height*k; c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.75)); URL.revokeObjectURL(img.src); }; img.src=URL.createObjectURL(file); }); }
-async function photoBlock(box,input,owner,label){
-  const o=state.obj; const draw=async()=>{ const ph=(await DB.all('photos')).filter(p=>p.obj===o.id&&(owner?p.owner===owner:true));
-    $(box).innerHTML=ph.map(p=>`<figure><img src="${p.data}"><figcaption>${esc(p.label)}</figcaption><button class="x" data-dp="${p.id}">×</button></figure>`).join('')||'<p style="color:var(--mut)">Фото пока нет.</p>';
-    document.querySelectorAll(`${box} [data-dp]`).forEach(el=>el.onclick=async()=>{await DB.del('photos',el.dataset.dp);draw();}); };
-  if(input) $(input).onchange=async e=>{ for(const f of e.target.files){ await DB.put('photos',{id:uid(),obj:o.id,owner:owner||'obj',label:label||'Общее',data:await compress(f),t:Date.now()}); } e.target.value=''; draw(); };
-  draw();
-}
-function tabPhotos(){
-  $('#tab').innerHTML=`<div class="card"><h2>Все фото объекта</h2><div class="photos" id="aph"></div><label class="btn sec" style="margin-top:10px">${ic('photo')} Общее фото<input type="file" accept="image/*" capture="environment" id="acam" class="hidden"></label></div>`;
-  photoBlock('#aph','#acam',null,'Общее');
+  if(!o.rooms.length){ $('#tab').innerHTML=`<div class="card empty">Сначала нарисуйте помещения на плане.<div style="margin-top:12px"><button class="btn" data-next="plan">${ic('pen')} К плану</button></div></div>`; bindNext(); return; }
+  if(!openF||!o.rooms.some(r=>r.id===openF)) openF=o.rooms[0].id;
+  $('#tab').innerHTML=o.rooms.map((r,i)=>{ const f=r.fin, ok=(f.floor.length||f.floorOwn)&&f.walls.length, op=openF===r.id;
+    return `<div class="card fin ${op?'open':''}" id="fc-${r.id}"><div class="finhead row" data-openf="${r.id}"><h2 style="flex:1;margin:0">${i+1}. ${esc(r.name)}</h2><span class="tag ${ok?'ok':'warn'}">${ok?'заполнено':'не заполнено'}</span><span class="chev ${op?'up':''}">${ic('chev')}</span></div>
+     ${!op?`<div class="finsum">${esc(finSum(r))||'<span style="color:var(--mut)">Нажмите, чтобы выбрать отделку</span>'}</div>`:`
+     <h3>Пол</h3>${chipSet(f.floor,FLOORS,'data-fl')}<div class="chips" style="margin-top:8px"><span class="chip ${f.floorOwn||r._fo?'on':''}" data-flown="1">${OWN}</span></div>
+     ${f.floorOwn||r._fo?`<input data-t="floorOwn" value="${esc(f.floorOwn)}" placeholder="Например: наливной пол" style="margin-top:8px">`:''}
+     <h3>Стены</h3>${chipSet(f.walls,WALLS,'data-wl')}
+     <h3>Акцентная стена</h3><div class="chips"><span class="chip ${f.accent==='да'?'on':''}" data-acc="да">Да</span><span class="chip ${f.accent==='нет'?'on':''}" data-acc="нет">Нет</span></div>
+     ${f.accent==='да'?`<div class="xbox"><label style="margin-top:0">Какая стена (номер с плана)</label><div class="xw"><div class="mini">${planSVG(o,{only:r.id,h:200,w:300,hl:f.accWall})}</div><div>
+        ${chipSet(f.accWall,r.walls.map((w,j)=>String(j+1)),'data-aw')}
+        <label>Отделка акцентной стены</label>${chipSet(f.accFin,WALLS,'data-af')}<div class="chips" style="margin-top:8px"><span class="chip ${f.accOwn||r._ao?'on':''}" data-aown="1">${OWN}</span></div>
+        ${f.accOwn||r._ao?`<input data-t="accOwn" value="${esc(f.accOwn)}" placeholder="Например: 3D-панели" style="margin-top:8px">`:''}</div></div></div>`:''}
+     <h3>Что ещё учесть</h3><textarea data-extra="${r.id}" placeholder="Нестандартные пожелания заказчика: ниша, подсветка, перенос розеток…">${esc(r.extra)}</textarea>`}
+    </div>`; }).join('')+nextBtn('total','Дальше: итоги');
+  bindNext();
+  $$('[data-openf]').forEach(el=>el.onclick=()=>{ openF=openF===el.dataset.openf?null:el.dataset.openf; tabFin(); const c=$('#fc-'+el.dataset.openf); c&&c.scrollIntoView({block:'start',behavior:'smooth'}); });
+  const r=o.rooms.find(x=>x.id===openF); if(!r) return; const f=r.fin;
+  const tog=(arr,v)=>{ const i=arr.indexOf(v); i>=0?arr.splice(i,1):arr.push(v); };
+  const upd=()=>{ save(true); drawTabs(); tabFin(); };
+  $$('[data-fl]').forEach(el=>el.onclick=()=>{ tog(f.floor,el.dataset.fl); upd(); });
+  $$('[data-wl]').forEach(el=>el.onclick=()=>{ tog(f.walls,el.dataset.wl); upd(); });
+  $$('[data-aw]').forEach(el=>el.onclick=()=>{ tog(f.accWall,el.dataset.aw); upd(); });
+  $$('[data-af]').forEach(el=>el.onclick=()=>{ tog(f.accFin,el.dataset.af); upd(); });
+  $$('[data-acc]').forEach(el=>el.onclick=()=>{ f.accent=f.accent===el.dataset.acc?'':el.dataset.acc; upd(); });
+  const fo=$('[data-flown]'); fo.onclick=()=>{ if(f.floorOwn||r._fo){ f.floorOwn=''; r._fo=false; } else r._fo=true; upd(); const i=$('[data-t="floorOwn"]'); i&&i.focus(); };
+  const ao=$('[data-aown]'); if(ao) ao.onclick=()=>{ if(f.accOwn||r._ao){ f.accOwn=''; r._ao=false; } else r._ao=true; upd(); const i=$('[data-t="accOwn"]'); i&&i.focus(); };
+  $$('[data-t]').forEach(el=>el.oninput=()=>{ f[el.dataset.t]=el.value; save(true); drawTabs(); });
+  const ex=$(`[data-extra="${r.id}"]`); ex.oninput=()=>{ r.extra=ex.value; save(true); };
 }
 
 // ---------- итоги ----------
-function totals(o){ const t={area:0,walls:0,perim:0,plinth:0,slopes:0}; o.rooms.forEach(r=>{const g=geom(r);t.area+=g.area;t.walls+=g.walls;t.perim+=g.perim;t.plinth+=g.plinth;t.slopes+=g.slopes;}); return t; }
-function volumesTable(o){
-  return `<table><tr><th>Помещение</th><th class="n">Пол, м²</th><th class="n">Стены, м²</th><th class="n">Периметр, м</th><th class="n">Плинтус, м</th><th class="n">Откосы, м</th><th class="n">Высота, м</th></tr>
-  ${o.rooms.map(r=>{const g=geom(r);return`<tr><td>${esc(r.name)}</td><td class="n">${f2(g.area)}</td><td class="n">${f2(g.walls)}</td><td class="n">${f2(g.perim)}</td><td class="n">${f2(g.plinth)}</td><td class="n">${f2(g.slopes)}</td><td class="n">${f2(g.H)}</td></tr>`}).join('')}
-  ${(()=>{const t=totals(o);return`<tr><th>Итого</th><th class="n">${f2(t.area)}</th><th class="n">${f2(t.walls)}</th><th class="n">${f2(t.perim)}</th><th class="n">${f2(t.plinth)}</th><th class="n">${f2(t.slopes)}</th><th></th></tr>`})()}</table>`;
-}
+function issues(o){ const out=[]; if(!o.kv) out.push('Не указано, сколько комнат в квартире (вкладка «Клиент»).');
+  const liv=o.rooms.filter(r=>LIVING.includes(r.name)).length, kvn=o.kv==='Студия'?1:parseInt(o.kv); if(kvn&&o.rooms.length&&liv&&liv<kvn&&o.kv!=='Студия') out.push(`Указано комнат: ${o.kv}, а жилых на плане: ${liv}. Проверьте названия помещений.`);
+  const rs=o.risers||[]; ['k','v'].forEach(t=>{ if(!rs.some(q=>q.t===t)) out.push(`На плане не отмечен стояк: ${RIS[t].n.toLowerCase()} (вкладка «План», кнопка «Стояки»).`); });
+  if(!num(o.height)) out.push('Не указана высота потолков (вкладка «План»).');
+  o.rooms.forEach(r=>{ const g=geo(r,o), f=r.fin;
+    if(!g.done) out.push(`${r.name}: не все стены измерены (${g.sized} из ${g.n}).`); else if(g.gap>5) out.push(`${r.name}: размеры не сходятся на ${cm(g.gap)} см, перепроверьте стены.`);
+    if((phCount[r.id]||0)<PH_MIN) out.push(`${r.name}: фото ${phCount[r.id]||0} из ${PH_MIN}.`);
+    if(!(f.floor.length||f.floorOwn)||!f.walls.length) out.push(`${r.name}: не выбрана отделка пола или стен.`);
+    if(f.accent==='да'&&!(f.accFin.length||f.accOwn)) out.push(`${r.name}: не выбрана отделка акцентной стены.`); });
+  return out; }
+const finTxt=(arr,own)=>[...arr,...(own?[own]:[])].join(', ');
+function volumesTable(o){ let A=0,W=0,P=0,O=0,SL=0;
+  return `<div class="tbl"><table><tr><th>Помещение</th><th class="n">Пол, м²</th><th class="n">Потолок, м²</th><th class="n">Стены без проёмов, м²</th><th class="n">Периметр, м</th><th class="n">Окна и двери, м²</th><th class="n">Откосы, м</th></tr>
+  ${o.rooms.map(r=>{ const g=geo(r,o); A+=g.area; W+=g.walls; P+=g.perim; O+=g.opA; SL+=g.slopes; return `<tr><td>${esc(r.name)}${g.done?'':' <span class="warn">*</span>'}</td><td class="n">${f2(g.area)}</td><td class="n">${f2(g.area)}</td><td class="n">${f2(g.walls)}</td><td class="n">${f2(g.perim)}</td><td class="n">${f2(g.opA)}</td><td class="n">${f2(g.slopes)}</td></tr>`; }).join('')}
+  <tr><th>Итого</th><th class="n">${f2(A)}</th><th class="n">${f2(A)}</th><th class="n">${f2(W)}</th><th class="n">${f2(P)}</th><th class="n">${f2(O)}</th><th class="n">${f2(SL)}</th></tr></table></div>`; }
+function opsTable(o){ const L=o.rooms.flatMap(r=>r.openings.map(op=>({r,op}))); if(!L.length) return '<p class="hint">Окон и дверей пока нет.</p>';
+  let A=0; return `<div class="tbl"><table><tr><th>Помещение</th><th>Что</th><th class="n">Стена</th><th class="n">Ширина, см</th><th class="n">Высота, см</th><th class="n">От угла, см</th><th class="n">Площадь, м²</th></tr>${L.map(({r,op})=>{ const a=num(op.w)*num(op.h)/1e4; A+=a;
+  return `<tr><td>${esc(r.name)}</td><td>${esc(op.type)}</td><td class="n">${esc(op.wall)}</td><td class="n">${esc(op.w)}</td><td class="n">${esc(op.h)}</td><td class="n">${op.off===''?'по центру':esc(op.off)}</td><td class="n">${f2(a)}</td></tr>`; }).join('')}
+  <tr><th colspan="6">Итого</th><th class="n">${f2(A)}</th></tr></table></div>`; }
+function risTable(o){ const rs=o.risers||[]; if(!rs.length) return '<p class="hint">Стояки не отмечены.</p>';
+  return `<div class="tbl"><table><tr><th>Стояк</th><th>Где</th></tr>${rs.map(q=>{ const r=risRoom(o,q); return `<tr><td><i class="risdot" style="background:${RIS[q.t].c}">${RIS[q.t].s}</i> ${RIS[q.t].n}</td><td>${r?esc(r.name):'вне помещений'}</td></tr>`; }).join('')}</table></div><p class="hint">Канализация: ${rs.filter(q=>q.t==='k').length} шт, водоснабжение: ${rs.filter(q=>q.t==='v').length} шт.</p>`; }
+function finTable(o){ return `<div class="tbl"><table><tr><th>Помещение</th><th>Пол</th><th>Стены</th><th>Акцентная стена</th><th>Что ещё учесть</th></tr>${o.rooms.map(r=>{ const f=r.fin;
+  return `<tr><td><b>${esc(r.name)}</b></td><td>${esc(finTxt(f.floor,f.floorOwn))||'—'}</td><td>${esc(f.walls.join(', '))||'—'}</td><td>${f.accent==='да'?esc(finTxt(f.accFin,f.accOwn)||'да')+(f.accWall.length?`<br><small>стена ${f.accWall.join(', ')}</small>`:''):esc(f.accent||'—')}</td><td>${esc(r.extra)||'—'}</td></tr>`; }).join('')}</table></div>`; }
 function tabTotal(){
-  const o=state.obj, t=totals(o);
-  $('#tab').innerHTML=`<div class="card"><h2>Итоги замера</h2><div class="stat"><div><b>${f2(t.area)} м²</b><span>Площадь пола</span></div><div><b>${f2(t.walls)} м²</b><span>Стены без проёмов</span></div><div><b>${f2(t.plinth)} м</b><span>Плинтус</span></div><div><b>${f2(t.slopes)} м</b><span>Откосы</span></div></div></div>
-  <div class="card">${volumesTable(o)}</div>
-  <div class="card"><h2>Вид чистовой отделки</h2>${finTable(o)}</div>
-  <div class="card row"><button class="btn" id="pp">${ic('doc')} Паспорт замера (PDF)</button><button class="btn sec" id="csv">${ic('down')} Объёмы для сметы (Excel)</button><button class="btn sec" id="js">${ic('down')} Файл замера для офиса</button></div>`;
-  $('#pp').onclick=()=>passport(o);
-  $('#csv').onclick=()=>{ const rows=[['Помещение','Пол м2','Стены м2','Периметр м','Плинтус м','Откосы м','Высота м','Пол','Стены','Акцентная стена','Тихие стены','Потолок','Точки водоснабжения']]; o.rooms.forEach(r=>{const g=geom(r);rows.push([r.name,g.area,g.walls,g.perim,g.plinth,g.slopes,g.H].map(v=>typeof v==='number'?String(Math.round(v*100)/100).replace('.',','):v).concat([finText(r,'floor'),finText(r,'walls'),accText(r),quietText(r),finText(r,'ceil'),isWet(r)?String(r.water||0):''].map(v=>'"'+v.replace(/"/g,'""')+'"')));});
-    download(new Blob(['﻿'+rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'}),`объёмы-${(o.client||'замер').replace(/\s+/g,'_')}.csv`); };
-  $('#js').onclick=async()=>{ const ph=(await DB.all('photos')).filter(p=>p.obj===o.id); download(new Blob([JSON.stringify({app:'zamer-ks',v:1,objects:[o],photos:ph})],{type:'application/json'}),`замер-${(o.client||'объект').replace(/\s+/g,'_')}.json`); };
+  const o=state.obj, is=issues(o);
+  $('#tab').innerHTML=`${is.length?`<div class="card" style="border-color:#F2C8A8;background:var(--warnsoft)"><h2>Что ещё не заполнено</h2><ul class="iss">${is.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`:`<div class="card" style="border-color:#BFE3CB;background:var(--oksoft)"><h2>Замер заполнен полностью</h2><p style="margin:0">Можно сохранить паспорт в PDF и отправить в офис.</p></div>`}
+   <div class="card"><h2>Объёмы по помещениям</h2>${volumesTable(o)}<p class="hint">Высота потолков: ${num(o.height)?cm(num(o.height))+' см':'не указана, считаю по 270 см'}.</p></div>
+   ${o.rooms.map((r,i)=>{ const g=geo(r,o); return `<div class="card"><h2>${i+1}. ${esc(r.name)}</h2><div class="stat">${[['Пол',f2(g.area)+' м²'],['Потолок',f2(g.area)+' м²'],['Стены без проёмов',f2(g.walls)+' м²'],['Периметр',f2(g.perim)+' м'],['Окна и двери',f2(g.opA)+' м²'],['Откосы',f2(g.slopes)+' м'],['Фото',(phCount[r.id]||0)+' шт']].map(([t,v])=>`<div><b>${v}</b><span>${t}</span></div>`).join('')}</div><div class="finsum" style="margin-top:10px">${esc(finSum(r))}${r.extra?`<br><b>Учесть:</b> ${esc(r.extra)}`:''}</div></div>`; }).join('')}
+   <div class="card"><h2>Окна и двери</h2>${opsTable(o)}</div>
+   <div class="card"><h2>Стояки</h2>${risTable(o)}</div>
+   <div class="card"><h2>Отделка</h2>${finTable(o)}</div>
+   <div class="row"><button class="btn" id="pdf">Паспорт PDF</button><button class="btn blue" id="v3t">${ic('cube',18)} 3D-план</button><button class="btn sec" id="js">${ic('down',18)} Сохранить файл замера</button></div>`;
+  $('#pdf').onclick=()=>passport(o); $('#v3t').onclick=()=>view3d(o);
+  $('#js').onclick=async()=>{ const ph=(await DB.all('photos')).filter(p=>p.obj===o.id); download(new Blob([JSON.stringify({app:'zamer-ks',v:2,objects:[o],photos:ph})],{type:'application/json'}),`замер-${(o.client||'объект').replace(/\s+/g,'_')}.json`); };
 }
-
-// ---------- паспорт (печать в PDF) ----------
 async function passport(o){
-  const ph=(await DB.all('photos')).filter(p=>p.obj===o.id).slice(0,12);
+  const ph=(await DB.all('photos')).filter(p=>p.obj===o.id);
   $('#passport').innerHTML=`
-   <div class="pg"><h1 style="margin:0">Паспорт замера квартиры</h1><p style="margin:4px 0 12px;color:#555">Капиталстрой · ремонт квартир · kapitalstroy68.com</p>
-   <table><tr><td>Клиент</td><td>${esc(o.client)} ${esc(o.phone)}</td></tr><tr><td>Адрес</td><td>${esc(o.address)} ${o.jk?'· '+esc(o.jk):''}</td></tr>${o.flatType?`<tr><td>Тип помещения</td><td>${esc(o.flatType)}</td></tr>`:''}<tr><td>Дата замера</td><td>${new Date(o.created).toLocaleDateString('ru-RU')}</td></tr><tr><td>Менеджер</td><td>${esc(o.manager)}</td></tr></table></div>
-   <div class="pg"><h2>План квартиры</h2>${aptSVG(o,{h:420})}</div>
+   <div class="pg"><h1 style="margin:0">Паспорт замера квартиры</h1><p style="margin:4px 0 12px;color:#555">КапиталСтрой · отделка и ремонт · kapitalstroy68.com</p>
+   <table><tr><td>Клиент</td><td>${esc(o.client)} ${esc(o.phone)}</td></tr><tr><td>Адрес</td><td>${esc(o.address)}</td></tr><tr><td>Комнат</td><td>${esc(o.kv)||'—'}</td></tr><tr><td>Дата замера</td><td>${new Date(o.created).toLocaleDateString('ru-RU')}</td></tr><tr><td>Менеджер</td><td>${esc(o.manager)}</td></tr><tr><td>Высота потолков</td><td>${num(o.height)?cm(num(o.height))+' см':'—'}</td></tr></table></div>
+   <div class="pg"><h2>План квартиры</h2>${planSVG(o,{h:420,w:700,static:1})}</div>
    <div class="pg"><h2>Объёмы</h2>${volumesTable(o)}</div>
-   ${o.rooms.map(r=>`<div class="pg"><h2>${esc(r.name)}</h2>${planSVG(r,{h:380})}${isWet(r)?`<div><b>Точки водоснабжения:</b> ${r.water||0}</div>`:''}${Object.entries(r.state||{}).filter(([k,v])=>v.length&&STATE_OPTS[k]).map(([k,v])=>`<div><b>${esc(k)}:</b> ${esc(v.join(', '))}</div>`).join('')}${r.note?`<div><b>Примечание:</b> ${esc(r.note)}</div>`:''}</div>`).join('')}
-   <div class="pg"><h2>Вид чистовой отделки</h2>${finTable(o)}${o.notes2?`<p><b>Примечания для сметы:</b> ${esc(o.notes2)}</p>`:''}</div>
-   ${ph.length?`<div class="pg"><h2>Фото</h2><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${ph.map(p=>`<img src="${p.data}" style="width:100%;height:150px;object-fit:cover">`).join('')}</div></div>`:''}`;
+   <div class="pg"><h2>Окна и двери</h2>${opsTable(o)}</div>
+   <div class="pg"><h2>Стояки</h2>${risTable(o)}</div>
+   <div class="pg"><h2>Отделка</h2>${finTable(o)}</div>
+   ${o.rooms.map(r=>{ const rp=ph.filter(p=>p.room===r.id).slice(0,6); return `<div class="pg"><h2>${esc(r.name)}</h2>${planSVG(o,{only:r.id,h:300,w:600,static:1,hl:r.fin.accent==='да'?r.fin.accWall:[]})}
+     ${r.openings.length?`<p><b>Окна и двери:</b> ${r.openings.map(x=>`${esc(x.type)} ${esc(x.w)}×${esc(x.h)} (стена ${esc(x.wall)})`).join('; ')}</p>`:''}
+     ${rp.length?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${rp.map(p=>`<img src="${p.data}" style="width:100%;height:150px;object-fit:cover">`).join('')}</div>`:''}</div>`; }).join('')}`;
   setTimeout(()=>{ if(window.ZKS&&ZKS.print) ZKS.print('Паспорт замера '+(o.client||'')); else window.print(); },300);
 }
 
-DB.open().then(render).catch(e=>{$('#app').innerHTML='<div class="card warn">Браузер не дал сохранить данные: '+esc(e)+'</div>';});
+// ---------- 3D: квартира из плана, крутится пальцем, без интернета ----------
+const FLOOR_COL={'Линолеум':'#C9B79C','Ламинат':'#D2A679','Керамогранит':'#C9CDD2','Паркет':'#B9824F','Инженерная доска':'#C49465','Кварцвинил клеевой':'#D8BE98','Кварцвинил замковый':'#CFB28A'};
+const SILL=90; // подоконник, см
+function view3d(o,onlyId){
+  const rooms=onlyId?o.rooms.filter(r=>r.id===onlyId):o.rooms; if(!rooms.length){ toast('Сначала нарисуйте помещения'); return; }
+  const Hc=num(o.height)||270;
+  const d=document.createElement('div'); d.className='v3d';
+  d.innerHTML=`<div class="v3bar"><b>3D-план</b><span class="hint" style="margin:0;flex:1">Крутите одним пальцем, двумя приближайте</span>
+    <button class="btn sec sm" data-v="top">Сверху</button><button class="btn sec sm" data-v="iso">Объём</button><button class="btn sm" id="v3x">${ic('close',18)} Закрыть</button></div><canvas></canvas>`;
+  document.body.appendChild(d); const cv=d.querySelector('canvas'), ctx=cv.getContext('2d');
+  const all=rooms.flatMap(r=>pts(r)); const cx=(Math.min(...all.map(p=>p[0]))+Math.max(...all.map(p=>p[0])))/2, cy=(Math.min(...all.map(p=>p[1]))+Math.max(...all.map(p=>p[1])))/2;
+  const span=Math.max(...all.map(p=>Math.hypot(p[0]-cx,p[1]-cy)))*2+Hc;
+  let yaw=-.6, pitch=.75, zoom=1;
+  // стены по комнатам: внешняя нормаль нужна, чтобы «срезать» стены, которые смотрят на нас (как у кукольного домика)
+  const walls=[]; rooms.forEach(r=>{ const P=pts(r), S=sides(P), ccw=sarea(P)<0, acc=r.fin.accent==='да'?r.fin.accWall.map(Number):[];
+    S.forEach((s,i)=>{ const dx=(s.q[0]-s.p[0])/(s.L||1), dy=(s.q[1]-s.p[1])/(s.L||1); walls.push({r,s,i,nx:ccw?-dy:dy,ny:ccw?dx:-dx,acc:acc.includes(i+1),ops:r.openings.filter(op=>+op.wall===i+1)}); }); });
+  const fit=()=>{ const dpr=window.devicePixelRatio||1; cv.width=cv.clientWidth*dpr; cv.height=cv.clientHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); draw(); };
+  function P3(x,y,z){ const X=x-cx, Y=y-cy, c=Math.cos(yaw), s=Math.sin(yaw); const x1=X*c-Y*s, y1=X*s+Y*c;
+    const k=Math.min(cv.clientWidth,cv.clientHeight)/span*zoom; return [cv.clientWidth/2+x1*k, cv.clientHeight/2+(y1*Math.sin(pitch)-z*Math.cos(pitch))*k, y1*Math.cos(pitch)+z*Math.sin(pitch)]; }
+  const poly=(Q,fill,stroke,lw=1)=>{ ctx.beginPath(); Q.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke();} };
+  function draw(){
+    const W=cv.clientWidth,H=cv.clientHeight; ctx.clearRect(0,0,W,H);
+    const c=Math.cos(yaw), s=Math.sin(yaw);
+    // пол
+    rooms.forEach(r=>{ const P=pts(r); poly(P.map(p=>P3(p[0],p[1],0)),FLOOR_COL[r.fin.floor[0]]||'#E4E7EB','#9AA1AB',1); });
+    // стены: дальние раньше ближних
+    const items=walls.map(w=>{ const m=lerp(w.s.p,w.s.q,.5); const ny1=w.nx*s+w.ny*c; const front=ny1>0.15&&pitch<1.45; const h=front?Math.min(40,Hc):Hc; return {w,h,front,dep:P3(m[0],m[1],h/2)[2]}; }).sort((a,b)=>a.dep-b.dep);
+    items.forEach(({w,h,front})=>{ const a=w.s.p,b=w.s.q;
+      const shade=.78+.22*Math.abs(Math.cos(Math.atan2(w.ny,w.nx)-yaw));
+      const base=w.acc?[211,35,43]:[236,239,242]; const col=`rgba(${base.map(v=>Math.round(v*shade)).join(',')},${front?.55:.96})`;
+      poly([P3(a[0],a[1],0),P3(b[0],b[1],0),P3(b[0],b[1],h),P3(a[0],a[1],h)],col,'#4A525C',front?.8:1.2);
+      if(front) return;
+      w.ops.forEach(op=>{ const sp=opSpan(op,sides(pts(w.r))); if(!sp) return; const t0=sp.off/sp.s.L, t1=(sp.off+sp.w)/sp.s.L; const A=lerp(a,b,t0), B=lerp(a,b,t1);
+        const isWin=op.type==='Окно', z0=isWin?SILL:0, z1=Math.min(Hc-5,z0+(num(op.h)||OPS[op.type].h));
+        poly([P3(A[0],A[1],z0),P3(B[0],B[1],z0),P3(B[0],B[1],z1),P3(A[0],A[1],z1)],isWin?'#A9D3F5':op.type==='Входная дверь'?'#8B5E3C':'#C9925A','#ffffff',2); });
+    });
+    // стояки: трубы от пола до потолка
+    (o.risers||[]).forEach(q=>{ const A=P3(q.x,q.y,0), B=P3(q.x,q.y,Hc); ctx.lineCap='round'; ctx.strokeStyle='#ffffff'; ctx.lineWidth=11; ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+      ctx.strokeStyle=RIS[q.t].c; ctx.lineWidth=7; ctx.stroke(); ctx.lineCap='butt'; });
+    // подписи помещений
+    ctx.font='700 14px Manrope,system-ui,sans-serif'; ctx.textAlign='center';
+    rooms.forEach(r=>{ const c0=centroid(pts(r)), p=P3(c0[0],c0[1],2); ctx.lineWidth=4; ctx.strokeStyle='#ffffffcc'; ctx.strokeText(r.name,p[0],p[1]); ctx.fillStyle='#1E2227'; ctx.fillText(r.name,p[0],p[1]); });
+  }
+  const pts0=new Map(); let last=null, pinch=null;
+  cv.onpointerdown=e=>{ cv.setPointerCapture(e.pointerId); pts0.set(e.pointerId,[e.clientX,e.clientY]); };
+  cv.onpointermove=e=>{ if(!pts0.has(e.pointerId)) return; const prev=pts0.get(e.pointerId); pts0.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts0.size===2){ const [p1,p2]=[...pts0.values()]; const dd=Math.hypot(p1[0]-p2[0],p1[1]-p2[1]); if(pinch) zoom=Math.max(.4,Math.min(5,zoom*dd/pinch)); pinch=dd; draw(); return; }
+    yaw+=(e.clientX-prev[0])*.01; pitch=Math.max(.2,Math.min(1.5,pitch-(e.clientY-prev[1])*.006)); draw(); };
+  cv.onpointerup=cv.onpointercancel=e=>{ pts0.delete(e.pointerId); if(pts0.size<2) pinch=null; };
+  cv.onwheel=e=>{ e.preventDefault(); zoom=Math.max(.4,Math.min(5,zoom*(e.deltaY<0?1.1:.9))); draw(); };
+  d.querySelector('[data-v="top"]').onclick=()=>{ yaw=0; pitch=1.5; zoom=1; draw(); };
+  d.querySelector('[data-v="iso"]').onclick=()=>{ yaw=-.6; pitch=.75; zoom=1; draw(); };
+  const close=()=>{ window.removeEventListener('resize',fit); d.remove(); };
+  d.querySelector('#v3x').onclick=close; d.close=close;
+  window.addEventListener('resize',fit); requestAnimationFrame(fit);
+}
+
+let rsz=null; window.addEventListener('resize',()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ if(state.view==='obj'&&state.tab==='plan'&&!ed.cur.length) renderPlan(); },200); });
+DB.open().then(render).catch(e=>{ $('#app').innerHTML=`<div class="card warn">Хранилище недоступно: ${esc(e&&e.message)}</div>`; });
+
 </script>
 </body>
 </html>
