@@ -1,0 +1,21 @@
+name: Смета КС — публикация установщика
+
+on:
+  push:
+    branches: [smeta-ks-setup]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Опубликовать
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete smeta-ks --yes --cleanup-tag || true
+          gh release create smeta-ks SmetaKS-Setup.exe --target "${{ github.sha }}" --title "Смета КС для компьютера" --notes "Скачайте SmetaKS-Setup.exe и запустите. Ярлык появится на рабочем столе."
