@@ -1,6 +1,7 @@
 // Партнёрская программа КС + ТС (19.10.2026). Публичная функция без JWT, как forma-otchet:
 // партнёр ходит по личной ссылке с токеном (#t=...), админка — с ключом «ключ_партнёр_админ» (#a=...).
-// В amoCRM ничего не пишет: только ищет клиента по телефону (чтение через шлюз amo).
+// В amoCRM создаёт сделку на выбранного менеджера (решение Max 28.10), если телефона ещё нет в amo.
+// Настройки (этапы, значение источника) в sluzhebnoe «партнёр_amo»; пусто — сделки не создаются.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -23,7 +24,7 @@ const skryt = (imya: string) => {
   return b ? `${a} ${b[0]}.` : a;
 };
 
-// Чтение amo через существующий шлюз (запись туда не отправляем никогда).
+// Чтение amo через существующий шлюз.
 async function amoGet(path: string, params: Record<string, unknown> = {}) {
   const res = await fetch(`${URL_}/functions/v1/amo`, {
     method: "POST",
@@ -35,6 +36,48 @@ async function amoGet(path: string, params: Record<string, unknown> = {}) {
     body: JSON.stringify({ method: "GET", path, params }),
   });
   return (await res.json().catch(() => ({}))) as { status?: number; data?: any };
+}
+
+const ODOBRENO = "Max 28.10.2026, карточка «Да, создавать» (сделка в amo по заявке партнёра)";
+async function amoPost(path: string, body: unknown) {
+  const res = await fetch(`${URL_}/functions/v1/amo`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+      "x-shumm-key": (await sluzh("ключ_функций")) ?? "",
+    },
+    body: JSON.stringify({ method: "POST", path, body, odobreno: ODOBRENO }),
+  });
+  return (await res.json().catch(() => ({}))) as { status?: number; data?: any };
+}
+
+// Сделка + контакт одним запросом, затем примечание с партнёром. Возвращает id сделки или null.
+async function sozdatSdelku(o: { napravlenie: string; menedzher: string; imya: string; tel: string; chto: string | null; partner: string; test: boolean }) {
+  const n = JSON.parse((await sluzh("партнёр_amo")) ?? "null");
+  if (!n) return { id: null, plan: null };
+  const ts = o.napravlenie === "ТС";
+  const otv = AMO_ID[o.menedzher];
+  const lead: any = {
+    name: `Партнёр: ${o.imya}`,
+    pipeline_id: ts ? 10764258 : 5466436,
+    status_id: ts ? n.ts_status : n.ks_status,
+    responsible_user_id: otv,
+    _embedded: {
+      tags: [{ name: "Партнёр" }],
+      contacts: [{
+        name: o.imya, responsible_user_id: otv,
+        custom_fields_values: [{ field_code: "PHONE", values: [{ value: o.tel, enum_code: "WORK" }] }],
+      }],
+    },
+  };
+  if (n.istochnik) lead.custom_fields_values = [{ field_id: 907793, values: [{ enum_id: n.istochnik }] }];
+  const primechanie = `Клиент от партнёра: ${o.partner}${o.chto ? "\nПримечание партнёра: " + o.chto : ""}`;
+  if (o.test) return { id: null, plan: { lead, primechanie } }; // тест: показываем, что ушло бы, в amo не пишем
+  const r = await amoPost("leads/complex", [lead]);
+  const id = Array.isArray(r.data) ? r.data[0]?.id : null;
+  if (id) await amoPost(`leads/${id}/notes`, [{ note_type: "common", params: { text: primechanie } }]);
+  return { id: id ?? null, plan: null };
 }
 
 async function vCrm(tel: string) {
@@ -101,6 +144,14 @@ Deno.serve(async (req) => {
       const { error } = await db.from("partner_peredachi").update(upd).eq("id", b.id);
       return error ? otvet({ error: "Не сохранилось" }, 500) : otvet({ ok: true });
     }
+    if (b.action === "admin_amo_spravka") {
+      // Справка для настройки: этапы воронок КС/ТС и значения поля «Источник обращения». Только чтение.
+      const [ks, ts, pole] = await Promise.all([
+        amoGet("leads/pipelines/5466436"), amoGet("leads/pipelines/10764258"), amoGet("leads/custom_fields/907793"),
+      ]);
+      const etapy = (r: any) => (r.data?._embedded?.statuses ?? []).map((x: any) => [x.id, x.name, x.sort, x.type]);
+      return otvet({ ks: etapy(ks), ts: etapy(ts), pole: pole.data?.enums, pole_name: pole.data?.name });
+    }
     return otvet({ error: "нет такого действия" }, 400);
   }
 
@@ -136,8 +187,18 @@ Deno.serve(async (req) => {
       soglasie: true, uzhe_v_crm: uzhe, test: p.test === true, menedzher,
       etap_ks: napravlenie === "ТС" ? null : "Передан", etap_ts: napravlenie === "КС" ? null : "Передан",
     };
-    const { error } = await db.from("partner_peredachi").insert(row);
+    const { data: zap, error } = await db.from("partner_peredachi").insert(row).select("id").single();
     if (error) return otvet({ error: "Не сохранилось, попробуйте ещё раз" }, 500);
+
+    // Новый для amo клиент: сразу заводим сделку. Если телефон уже есть, сделку не дублируем, менеджер проверит сам.
+    let sdelka: { id: number | null; plan: unknown } = { id: null, plan: null };
+    if (uzhe === false) {
+      try {
+        sdelka = await sozdatSdelku({ napravlenie, menedzher, imya, tel, chto: row.chto_nuzhno,
+          partner: `${p.imya}${p.kompaniya ? ", " + p.kompaniya : ""}`, test: p.test === true });
+      } catch { /* сделку заведёт менеджер по сообщению */ }
+      if (sdelka.id) await db.from("partner_peredachi").update(napravlenie === "ТС" ? { amo_lead_ts: sdelka.id } : { amo_lead_id: sdelka.id }).eq("id", zap.id);
+    }
 
     const kuda = { КС: "ремонт Капиталстрой", ТС: "Тихие стены", Оба: "ремонт + Тихие стены" }[napravlenie as "КС"];
     await telegram(
@@ -145,11 +206,12 @@ Deno.serve(async (req) => {
       `Партнёр: ${p.imya}${p.kompaniya ? ", " + p.kompaniya : ""} (ведёт ${p.vedet})\n` +
       `Клиент: ${imya}, ${tel}\nМенеджер: ${menedzher}\nНужно: ${kuda}${row.chto_nuzhno ? "\n" + row.chto_nuzhno : ""}${row.rayon ? "\nРайон: " + row.rayon : ""}\n` +
       (uzhe ? "⚠ Этот телефон уже есть в amoCRM, проверьте сделку.\n" : "") +
-      `Заведите сделку с источником «Партнёр» и позвоните клиенту.`,
+      (sdelka.id ? `Сделка в amo создана: https://macridin.amocrm.ru/leads/detail/${sdelka.id}\nПозвоните клиенту.`
+        : `Заведите сделку с источником «Партнёр» и позвоните клиенту.`),
       p.test ? undefined : menedzher, // тестовые заявки менеджерам не уходят
     );
     return otvet({
-      ok: true,
+      ok: true, ...(sdelka.plan ? { plan_amo: sdelka.plan } : {}),
       soobshchenie: uzhe
         ? "Клиент записан. Он уже обращался к нам раньше, менеджер проверит и сообщит Вам."
         : "Клиент записан. Мы позвоним ему сегодня или в ближайший рабочий день.",
