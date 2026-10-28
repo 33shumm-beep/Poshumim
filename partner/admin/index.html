@@ -102,8 +102,10 @@
           '<div class="muted">' + esc(p.tip || "") + (p.telefon ? " · " + esc(p.telefon) : "") + " · ведёт " + esc(p.vedet) + "</div>" +
           (p.test ? '<span class="tag t">тест</span>' : "") + (p.aktiven ? "" : '<span class="tag">отключён</span>') + "</div>" +
           '<button class="sec" data-off="' + p.id + '" data-akt="' + (p.aktiven ? 1 : 0) + '">' + (p.aktiven ? "Отключить" : "Включить") + "</button></div>" +
-          '<details><summary>Личная ссылка партнёра</summary><div class="link">' + esc(ssylka(p.token)) + "</div></details></div>";
+          '<details><summary>Личная ссылка партнёра</summary><div class="link">' + esc(ssylka(p.token)) + '</div>' +
+          '<button class="sec" data-copy="' + esc(ssylka(p.token)) + '">Скопировать ссылку</button></details></div>';
       }).join("") || '<p class="muted">Пока никого.</p>';
+      kopirovanie($("partnery"));
       d.partnery.forEach(function (p) {
         var b = document.querySelector('[data-off="' + p.id + '"]');
         b.onclick = function () {
@@ -147,12 +149,27 @@
   }
   zagruzit();
 
+  // Кнопки «Скопировать ссылку»: ссылку партнёру можно сразу вставить в сообщение.
+  function kopirovanie(blok) {
+    blok.querySelectorAll("[data-copy]").forEach(function (b) {
+      b.onclick = function () {
+        var t = b.getAttribute("data-copy");
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
+          b.textContent = "Скопировано ✓";
+        }, function () { window.prompt("Скопируйте ссылку:", t); });
+      };
+    });
+  }
+
   $("nAdd").onclick = function () {
     $("nMsg").textContent = ""; $("nLink").hidden = true;
     zapros({ action: "admin_partner", imya: $("nImya").value, kompaniya: $("nKomp").value, tip: $("nTip").value,
       telefon: $("nTel").value, vedet: $("nVedet").value, test: $("nTest").checked })
       .then(function (d) {
-        $("nLink").hidden = false; $("nLink").textContent = "Ссылка для партнёра: " + ssylka(d.token);
+        $("nLink").hidden = false;
+        $("nLink").innerHTML = "Ссылка для партнёра: " + esc(ssylka(d.token)) +
+          ' <button class="sec" data-copy="' + esc(ssylka(d.token)) + '">Скопировать ссылку</button>';
+        kopirovanie($("nLink"));
         ["nImya", "nKomp", "nTel"].forEach(function (id) { $(id).value = ""; }); $("nTest").checked = false;
         zagruzit();
       })
