@@ -14,6 +14,8 @@ const CORS = {
 const otvet = (data: unknown, status = 200) => Response.json(data, { status, headers: CORS });
 const sluzh = async (k: string) => (await db.from("sluzhebnoe").select("v").eq("k", k).maybeSingle()).data?.v as string | undefined;
 const MENEDZHERY = ["Панченко", "Протасов", "Васильев", "Кудинов"];
+// Telegram менеджера лежит в sluzhebnoe под ключом «тг_чат_<id пользователя amo>».
+const AMO_ID: Record<string, number> = { Панченко: 7863391, Протасов: 8252290, Васильев: 10467994, Кудинов: 13699338 };
 const tekst = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const cifry = (tel: string) => tel.replace(/\D/g, "").slice(-10);
 const skryt = (imya: string) => {
@@ -40,15 +42,20 @@ async function vCrm(tel: string) {
   return (r.data?._embedded?.contacts?.length ?? 0) > 0;
 }
 
-async function telegram(text: string) {
+// Одно сообщение выбранному менеджеру и копия Max (решение Max 28.10). Без повторов и напоминаний.
+async function telegram(text: string, menedzher?: string) {
   const token = await sluzh("тг_токен");
-  const chat = await sluzh("тг_чат");
-  if (!token || !chat) return;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chat, text }),
-  }).catch(() => {});
+  if (!token) return;
+  const max = await sluzh("тг_чат");
+  const man = menedzher ? await sluzh(`тг_чат_${AMO_ID[menedzher]}`) : undefined;
+  const chaty = [...new Set([man, max].filter(Boolean))] as string[];
+  await Promise.all(chaty.map((chat) =>
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chat, text }),
+    }).catch(() => {})
+  ));
 }
 
 async function partnerPoTokenu(t: unknown) {
@@ -139,6 +146,7 @@ Deno.serve(async (req) => {
       `Клиент: ${imya}, ${tel}\nМенеджер: ${menedzher}\nНужно: ${kuda}${row.chto_nuzhno ? "\n" + row.chto_nuzhno : ""}${row.rayon ? "\nРайон: " + row.rayon : ""}\n` +
       (uzhe ? "⚠ Этот телефон уже есть в amoCRM, проверьте сделку.\n" : "") +
       `Заведите сделку с источником «Партнёр» и позвоните клиенту.`,
+      p.test ? undefined : menedzher, // тестовые заявки менеджерам не уходят
     );
     return otvet({
       ok: true,
