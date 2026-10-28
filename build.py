@@ -65,6 +65,9 @@ def main() -> None:
     (DIST / "sdelki").mkdir(exist_ok=True)
     shutil.copy(ROOT / "sdelki" / "index.html", DIST / "sdelki" / "index.html")
 
+    # Партнёрская программа: страница партнёра, «Мои клиенты» и админка (токен или ключ после #).
+    shutil.copytree(ROOT / "partner", DIST / "partner", dirs_exist_ok=True)
+
     print("dist/index.html собран")
 
 

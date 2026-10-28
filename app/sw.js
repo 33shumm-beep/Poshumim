@@ -1,5 +1,5 @@
 /* Shumm service worker: приложение открывается из кеша даже без сети. */
-var CACHE = "shumm-v10";
+var CACHE = "shumm-v11";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg",
              "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
@@ -19,6 +19,8 @@ self.addEventListener("fetch", function (e) {
 
   /* Навигация: сначала сеть, при её отсутствии — сохранённая копия. */
   if (req.mode === "navigate") {
+    /* Отдельные страницы (отчёт, сделки, партнёры) не трогаем, чтобы они не подменили копию приложения. */
+    if (/\/(otchet|sdelki|partner)\//.test(new URL(req.url).pathname)) return;
     e.respondWith(
       fetch(req).then(function (res) {
         var copy = res.clone();
