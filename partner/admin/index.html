@@ -117,7 +117,7 @@
         var ks = k.napravlenie !== "ТС", ts = k.napravlenie !== "КС";
         return '<div class="card" data-id="' + k.id + '"><div class="row"><div><b>' + esc(k.klient_imya) + "</b> · " + esc(k.klient_tel) +
           '<div class="muted">' + new Date(k.created_at).toLocaleDateString("ru-RU") + " · от " + esc(imena[k.partner_id] || "?") +
-          " · " + esc(k.napravlenie) + (k.uzhe_v_crm ? " · уже был в amo" : "") + "</div>" +
+          " · " + esc(k.napravlenie) + (k.menedzher ? " · менеджер " + esc(k.menedzher) : "") + (k.uzhe_v_crm ? " · уже был в amo" : "") + "</div>" +
           (k.etap_ks ? '<span class="tag">Ремонт: ' + esc(k.etap_ks) + "</span>" : "") +
           (k.etap_ts ? '<span class="tag">ТС: ' + esc(k.etap_ts) + "</span>" : "") +
           (k.teplyy ? '<span class="tag">тёплый</span>' : "") + (k.test ? '<span class="tag t">тест</span>' : "") +

@@ -31,6 +31,8 @@
   .label:first-child{margin-top:0}
   .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .chips button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:10px;padding:10px 4px;font-size:14px}
+  .chips.man{grid-template-columns:1fr 1fr}
+  .chips small{display:block;font-size:11px;opacity:.7;font-weight:400}
   .chips button[aria-pressed="true"]{background:var(--head);border-color:var(--head);color:#fff;font-weight:600}
   input,textarea{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
     background:var(--card);color:var(--text);font-family:inherit}
@@ -74,20 +76,19 @@
 
     <section id="forma">
       <div class="card">
-        <div class="label">Что нужно клиенту</div>
-        <div class="chips" id="napr">
-          <button data-v="КС" aria-pressed="false">Ремонт</button>
-          <button data-v="ТС" aria-pressed="false">Тихие стены</button>
-          <button data-v="Оба" aria-pressed="false">И то и другое</button>
-        </div>
-        <div class="label">Имя клиента</div>
-        <input id="imya" autocomplete="off" placeholder="Например, Ирина Соколова">
+        <div class="label">ФИО клиента</div>
+        <input id="imya" autocomplete="off" placeholder="Соколова Ирина Петровна">
         <div class="label">Телефон клиента</div>
         <input id="tel" inputmode="tel" autocomplete="off" placeholder="+7 900 000-00-00">
-        <div class="label">Что знаете о задаче (необязательно)</div>
-        <textarea id="chto" placeholder="Двушка в ЖК «Вернадский», черновая, ключи в ноябре"></textarea>
-        <div class="label">Район или ЖК (необязательно)</div>
-        <input id="rayon" autocomplete="off">
+        <div class="label">Кому передать</div>
+        <div class="chips man" id="napr">
+          <button data-v="Панченко" aria-pressed="false">Панченко<small>ремонт</small></button>
+          <button data-v="Протасов" aria-pressed="false">Протасов<small>ремонт</small></button>
+          <button data-v="Васильев" aria-pressed="false">Васильев<small>ремонт</small></button>
+          <button data-v="Кудинов" aria-pressed="false">Кудинов<small>Тихие стены</small></button>
+        </div>
+        <div class="label">Примечание (необязательно)</div>
+        <textarea id="chto" placeholder="Двушка в ЖК «Вернадский», ключи в ноябре"></textarea>
         <label class="check"><input type="checkbox" id="soglasie">
           <span>Клиент согласен, что ему позвонят из Капиталстроя или Тихих стен</span></label>
         <p class="err" id="err" hidden></p>
@@ -154,11 +155,11 @@
   $("send").onclick = function () {
     $("err").hidden = true; $("ok").hidden = true;
     var btn = this; btn.disabled = true; btn.textContent = "Отправляю…";
-    zapros({ action: "peredat", napravlenie: napr, imya: $("imya").value, tel: $("tel").value,
-      chto: $("chto").value, rayon: $("rayon").value, soglasie: $("soglasie").checked })
+    zapros({ action: "peredat", menedzher: napr, imya: $("imya").value, tel: $("tel").value,
+      chto: $("chto").value, soglasie: $("soglasie").checked })
       .then(function (d) {
         $("okText").textContent = d.soobshchenie; $("ok").hidden = false;
-        ["imya", "tel", "chto", "rayon"].forEach(function (id) { $(id).value = ""; });
+        ["imya", "tel", "chto"].forEach(function (id) { $(id).value = ""; });
         $("soglasie").checked = false;
       })
       .catch(function (e) { $("err").textContent = e.message; $("err").hidden = false; })
@@ -182,6 +183,7 @@
         if (k.obnovleno && (!posl || k.obnovleno > posl)) posl = k.obnovleno;
         return '<div class="kl"><div class="top"><span class="name">' + esc(k.imya) + '</span><span class="date">' +
           new Date(k.data).toLocaleDateString("ru-RU") + "</span></div>" +
+          (k.menedzher ? '<div class="date">Менеджер: ' + esc(k.menedzher) + "</div>" : "") +
           plashka(NAZV["КС"], k.etap_ks) + plashka(NAZV["ТС"], k.etap_ts) +
           '<div class="money">Начислено <b>' + rub(k.nachisleno) + "</b> · выплачено <b>" + rub(k.vyplacheno) + "</b></div></div>";
       }).join("") : '<div class="hint" style="margin:0">Пока нет переданных клиентов. Первый — во вкладке «Передать клиента».</div>';

@@ -13,6 +13,7 @@ const CORS = {
 };
 const otvet = (data: unknown, status = 200) => Response.json(data, { status, headers: CORS });
 const sluzh = async (k: string) => (await db.from("sluzhebnoe").select("v").eq("k", k).maybeSingle()).data?.v as string | undefined;
+const MENEDZHERY = ["Панченко", "Протасов", "Васильев", "Кудинов"];
 const tekst = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const cifry = (tel: string) => tel.replace(/\D/g, "").slice(-10);
 const skryt = (imya: string) => {
@@ -103,10 +104,12 @@ Deno.serve(async (req) => {
   if (b.action === "info") return otvet({ imya: p.imya, kompaniya: p.kompaniya });
 
   if (b.action === "peredat") {
-    const napravlenie = ["КС", "ТС", "Оба"].includes(b.napravlenie) ? b.napravlenie : null;
+    // Партнёр выбирает менеджера; направление следует из менеджера (Кудинов ведёт «Тихие стены»).
+    const menedzher = MENEDZHERY.includes(b.menedzher) ? b.menedzher : null;
+    if (!menedzher) return otvet({ error: "Выберите менеджера" }, 400);
+    const napravlenie = menedzher === "Кудинов" ? "ТС" : "КС";
     const imya = tekst(b.imya, 80), tel = tekst(b.tel, 30);
-    if (!napravlenie) return otvet({ error: "Выберите, что нужно клиенту" }, 400);
-    if (!imya) return otvet({ error: "Напишите имя клиента" }, 400);
+    if (!imya) return otvet({ error: "Напишите ФИО клиента" }, 400);
     if (cifry(tel).length !== 10) return otvet({ error: "Проверьте телефон клиента" }, 400);
     if (b.soglasie !== true) return otvet({ error: "Нужно согласие клиента на звонок" }, 400);
 
@@ -123,7 +126,7 @@ Deno.serve(async (req) => {
     const row = {
       partner_id: p.id, napravlenie, klient_imya: imya, klient_tel: tel,
       chto_nuzhno: tekst(b.chto, 500) || null, rayon: tekst(b.rayon, 120) || null,
-      soglasie: true, uzhe_v_crm: uzhe, test: p.test === true,
+      soglasie: true, uzhe_v_crm: uzhe, test: p.test === true, menedzher,
       etap_ks: napravlenie === "ТС" ? null : "Передан", etap_ts: napravlenie === "КС" ? null : "Передан",
     };
     const { error } = await db.from("partner_peredachi").insert(row);
@@ -133,7 +136,7 @@ Deno.serve(async (req) => {
     await telegram(
       `${p.test ? "[ТЕСТ] " : ""}Новый клиент от партнёра\n` +
       `Партнёр: ${p.imya}${p.kompaniya ? ", " + p.kompaniya : ""} (ведёт ${p.vedet})\n` +
-      `Клиент: ${imya}, ${tel}\nНужно: ${kuda}${row.chto_nuzhno ? "\n" + row.chto_nuzhno : ""}${row.rayon ? "\nРайон: " + row.rayon : ""}\n` +
+      `Клиент: ${imya}, ${tel}\nМенеджер: ${menedzher}\nНужно: ${kuda}${row.chto_nuzhno ? "\n" + row.chto_nuzhno : ""}${row.rayon ? "\nРайон: " + row.rayon : ""}\n` +
       (uzhe ? "⚠ Этот телефон уже есть в amoCRM, проверьте сделку.\n" : "") +
       `Заведите сделку с источником «Партнёр» и позвоните клиенту.`,
     );
@@ -153,7 +156,7 @@ Deno.serve(async (req) => {
       klienty: spisok.map((r) => ({
         imya: skryt(r.klient_imya), data: r.created_at, napravlenie: r.napravlenie,
         etap_ks: r.etap_ks, etap_ts: r.etap_ts, nachisleno: Number(r.nachisleno) || 0,
-        vyplacheno: Number(r.vyplacheno) || 0, obnovleno: r.sinhr_at,
+        vyplacheno: Number(r.vyplacheno) || 0, obnovleno: r.sinhr_at, menedzher: r.menedzher,
       })),
     });
   }
