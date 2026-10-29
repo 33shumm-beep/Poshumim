@@ -1,0 +1,46 @@
+name: Замер КС — сборка APK
+
+on:
+  push:
+    branches: [zamer-ks-apk]
+    paths: ['zamer-android/**', '.github/workflows/zamer-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zamer-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zamer-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Собрать APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -o pipefail
+          if ! gradle --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log; then
+            grep -v "^\s*$" build.log | tail -45 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1
+          fi
+      - name: Опубликовать
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk ZamerKS.apk
+          gh release delete zamer-ks --yes --cleanup-tag || true
+          gh release create zamer-ks ZamerKS.apk --target "${{ github.sha }}" --title "Замер КС (сборка ${{ github.run_number }})" --notes "Приложение замера для планшета. Скачайте ZamerKS.apk и установите."
