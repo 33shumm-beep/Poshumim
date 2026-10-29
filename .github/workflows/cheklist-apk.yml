@@ -1,0 +1,50 @@
+name: Чек-листы замера — сборка APK
+
+on:
+  push:
+    branches: [cheklist-apk]
+    paths: ['cheklist-android/**', '.github/workflows/cheklist-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cheklist-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cheklist-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Собрать два APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -o pipefail
+          build() {
+            if ! gradle --no-daemon --stacktrace clean assembleRelease -PappId="$1" -PstartPage="$2" -PappName="$3" 2>&1 | tee build.log; then
+              grep -v "^\s*$" build.log | tail -45 | while IFS= read -r l; do echo "::error::$l"; done
+              exit 1
+            fi
+            cp app/build/outputs/apk/release/app-release.apk "$4"
+          }
+          build ru.kapitalstroy.cheklist.menedzher manager.html "Чек-лист замера" ChekList_Menedzher.apk
+          build ru.kapitalstroy.cheklist.klient klient.html "Анкета клиента" Anketa_Klienta.apk
+      - name: Опубликовать
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete cheklisty-ks --yes --cleanup-tag || true
+          gh release create cheklisty-ks ChekList_Menedzher.apk Anketa_Klienta.apk --target "${{ github.sha }}" --title "Чек-листы замера (сборка ${{ github.run_number }})" --notes "Два приложения для планшета: чек-лист менеджера и анкета клиента. Работают без интернета."
